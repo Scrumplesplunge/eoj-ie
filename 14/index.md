@@ -1,0 +1,110 @@
+I recently discovered [Gynvael's Summer GameDev Challenge][1], which has
+a fairly tight limit on the total size for game submissions: 64KiB, all-in.
+Submissions are advised to use JavaScript or WebAssembly, but as far as I was
+aware Emscripten produces a fair amount of boilerplate in JavaScript to make the
+wasm experience painless. I found out that `clang` natively supports compiling
+to webassembly without any help from Emscripten, so I decided to see if I could
+get it working. The result is a trivial helloworld example using WebAssembly
+without Emscripten.
+
+[1]: https://gynvael.coldwind.pl/?id=719
+
+To start with, we'll look at the C code:
+
+    // write is imported from js.
+    void write(const char* message, int length);
+
+    // We have no standard library access, so we need to provide our own strlen
+    // and puts.
+    unsigned long strlen(const char* c_string) {
+      const char* i = c_string;
+      while (*i) i++;
+      return i - c_string;
+    }
+
+    void puts(const char* message) {
+      write(message, strlen(message));
+    }
+
+    // We need to export symbols for them to be accessible in JavaScript. This
+    // attribute is how we tell clang to export the symbol from the WebAssembly
+    // module.
+    #define export __attribute__((visibility("default")))
+
+    export int main() {
+      puts("Hello, World!\n");
+    }
+
+Next, we need to turn this into a WebAssembly module. Here is the Makefile:
+
+    # clang is natively a cross compiler, yay! You might need to install wasm-ld,
+    # though. On ArchLinux, that just required `pacman -S lld`.
+    CC = clang --target=wasm32
+
+    # The standard library probably won't work out of the box, so we'll disable it.
+    CFLAGS = -nostdlib
+
+    # --no-entry              Prevents issues due to there being no _start. We'll
+    #                         just call main directly.
+    # --export-dynamic        This works alongside the export macro in the code to
+    #                         ensure that our exported functions are exposed in the
+    #                         WebAssembly.
+    # --import-memory         This makes the module expect a "memory" import which
+    #                         has the initial linear memory for the module.
+    # --allow-undefined-file  This is a file containing the names of every function
+    #                         which the compiler should allow to be undefined in the
+    #                         compiled WebAssembly module. These will have to be
+    #                         defined in JavaScript instead. Oddly, this seems to
+    #                         interact weirdly with -flto: enabling -flto makes
+    #                         things compile with undefined symbols even if they are
+    #                         not listed in this file.
+    LDFLAGS = -Wl,--no-entry -Wl,--export-dynamic -Wl,--import-memory  \
+    					-Wl,--allow-undefined-file=jsimport.txt
+
+    hello.wasm: hello.c
+    	${CC} ${CFLAGS} ${LDFLAGS} $^ -o $@
+
+With this, we can build a binary blob `hello.wasm`. We can make this much
+smaller by adding the various optimization flags but I omitted those for
+brevity. The final step is to load this module in JavaScript. I was expecting
+this to be much harder than it actually is, and was pleasantly surprised with
+what it actually took:
+
+    <!doctype html>
+    <meta charset=utf-8>
+    <script>
+    // WebAssembly memory is allocated in 64KiB chunks, so 2 means 128KiB.
+    const memory = new WebAssembly.Memory({initial: 2});
+
+    // This is the write() function we are using in the C code. Pointers get passed
+    // to javascript as offsets into the memory ArrayBuffer.
+    function write(message, length) {
+      const value = new Uint8Array(memory.buffer, message, length);
+      console.log(new TextDecoder().decode(value));
+    }
+
+    // The second argument to instantiateStreaming is how we provide the
+    // dependencies (imports) of the WebAssembly module. The compiler flags we used
+    // mean that we have to provide the initial memory, and we are using the
+    // undefined function write, so we need to provide its definition. If you forget
+    // to provide something which the module needs, it will fail to instantiate. You
+    // can enumerate all the dependencies for a WebAssembly module with:
+    //
+    // const module = WebAssembly.compileStreaming(fetch('hello.wasm'));
+    // for (const {kind, module, name} of WebAssembly.Module.imports(module)) {
+    //   console.log("%s %s::%s", kind, module, name);
+    // }
+    //
+    // Here, kind is "function", "table", "memory", or "global". We will need to set
+    // importObject[module][name] to something to satisfy the requirement. In our
+    // case, we have env::memory and env::write which we need to provide.
+    //
+    // After instantiating the module, the promise yields an object through which we
+    // can access the exported symbols of the module via o.instance.exports.foo. We
+    // will just invoke the main() function.
+    WebAssembly.instantiateStreaming(fetch('hello.wasm'), {env: {memory, write}})
+               .then(o => o.instance.exports.main());
+    </script>
+
+Altogether, with various compiler optimizations enabled and all the HTML
+minified, the hello world program is only 517 bytes.

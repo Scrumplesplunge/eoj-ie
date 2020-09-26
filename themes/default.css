@@ -1,0 +1,35 @@
+/* Generic page appearance */
+html { background: url('/images/maze.png') repeat; }
+
+body {
+  background-color: rgba(0, 0, 0, 0.1);
+  /* font-family: sans-serif; */
+  color: #ddd;
+  max-width: 40em;
+  margin: 0 auto;
+  padding: 1em;
+}
+
+/* Creation time */
+#header > time {
+  margin: 1em 0;
+  color: #888;
+  font-size: 0.8em;
+}
+
+/* Navigation links */
+a.previous { padding: 0.2em 0.5em 0.2em 0; float: left; }
+a.next { padding: 0.2em 0 0.2em 0.5em; float: right; }
+
+img { display: block; position: relative; width: 100%; }
+
+p { text-align: justify; }
+
+a { color: #88f; }
+
+/* Embedded code-snippets */
+code { color: #ff8; white-space: pre-wrap; }
+pre > code { display: block; margin-left: 1em; }
+
+/* Quotations */
+blockquote { color: #bbb; font-style: italic; margin: 0 1em; }

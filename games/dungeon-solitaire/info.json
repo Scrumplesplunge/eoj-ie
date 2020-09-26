@@ -1,0 +1,10 @@
+{
+  "title": "Dungeon Solitaire",
+  "description": "A Raycasted 3D mashup of Solitaire and a classic Dungeon Crawler. Complete a game of Solitaire by collecting cards from monsters.",
+  "created": "2018-04-22T22:39:12Z",
+  "source": "https://github.com/Scrumplesplunge/ludumdare41",
+  "ludum-dare": {
+    "event": "Ludum Dare 41",
+    "theme": "Combine 2 Incompatible Genres"
+  }
+}

@@ -1,0 +1,52 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="created" content="2016-12-12T21:16:05+00:00">
+<meta name="keywords" content="hacks, javascript">
+<link id="theme" rel="stylesheet" href="/themes/default.css">
+<script>
+// Take a look in /themes if you want to pick a different one.
+document.getElementById("theme").href =
+    localStorage.theme || "/themes/default.css";
+</script>
+<title>Horse</title>
+<header id="header">
+<h1>Horse</h1>
+<time datetime="2016-12-12T21:16:05+00:00">Monday 12th December 2016 at 21:16 GMT</time>
+<p>
+<a class="previous" href="/4">← Me</a>
+<a class="next" href="/6">A Simple C++ Build Tool →</a>
+<br style="clear: both">
+</p>
+</header>
+<p>This rather opaque code snippet:</p>
+
+<pre><code>javascript: setInterval(function(){
+  function d(e) {
+    var c = e.childNodes;
+    for(var i = 0; i &lt; c.length; i++) {
+      if (c[i].nodeType == 3) {
+        c[i].nodeValue = c[i].nodeValue.replace(/[^\s]+/g, "HORSE");
+      } else if (c[i].nodeType == 1 &amp;&amp; c[i].tagName == "IMG") {
+        var cs = window.getComputedStyle(c[i]);
+        var x = cs.width, y = cs.height;
+        c[i].src = "http://bit.ly/vcrd56";
+        c[i].style.width = x;
+        c[i].style.height = y;
+      } else if (c[i].nodeType == 1 &amp;&amp; c[i].tagName == "I") {
+        c[i].style.backgroundImage = "url('http://bit.ly/vcrd56')";
+      } else {
+        d(c[i]);
+      }
+    }
+  }
+  d(document.body);
+}, 1000);
+</code></pre>
+
+<p>when pasted into the address bar on Facebook, achieves something beautiful:</p>
+
+<p><img src="horse.png" alt="Horse" /></p>
+
+<p>I offer no justification for this script, but thank my cousin Tom for the
+inspiration.</p>

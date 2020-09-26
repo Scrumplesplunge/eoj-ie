@@ -1,0 +1,11 @@
+body {
+  background: black;
+  overflow: hidden;
+}
+
+#display {
+  background: white;
+  position: absolute;
+  border: 1px solid;
+  image-rendering: pixelated;
+}

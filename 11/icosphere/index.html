@@ -1,0 +1,171 @@
+<html>
+	<head>
+		<title>Icosphere Test</title>
+		<script type="text/javascript" src="3d.js"></script>
+		<script type="text/javascript">
+			var IcoSphere = (function() {
+				// Initial points.
+				var phi = 1 + 0.5 * Math.sqrt(5);
+				var points = [
+					new Vector(  -1,  phi,    0),
+					new Vector(   1,  phi,    0),
+					new Vector(  -1, -phi,    0),
+					new Vector(   1, -phi,    0),
+					new Vector(   0,   -1,  phi),
+					new Vector(   0,    1,  phi),
+					new Vector(   0,   -1, -phi),
+					new Vector(   0,    1, -phi),
+					new Vector( phi,    0,   -1),
+					new Vector( phi,    0,    1),
+					new Vector(-phi,    0,   -1),
+					new Vector(-phi,    0,    1)
+				].map(function(x) {
+					return x.normalized();
+				});
+
+				// Initial faces.
+				var faces = [
+					[ 0, 11,  5],
+					[ 0,  5,  1],
+					[ 0,  1,  7],
+					[ 0,  7, 10],
+					[ 0, 10, 11],
+					[ 1,  5,  9],
+					[ 5, 11,  4],
+					[11, 10,  2],
+					[10,  7,  6],
+					[ 7,  1,  8],
+					[ 3,  9,  4],
+					[ 3,  4,  2],
+					[ 3,  2,  6],
+					[ 3,  6,  8],
+					[ 3,  8,  9],
+					[ 4,  9,  5],
+					[ 2,  4, 11],
+					[ 6,  2, 10],
+					[ 8,  6,  7],
+					[ 9,  8,  1]
+				];
+
+				var detailLevels = [points.length];
+				var generatedDetail = 0;
+
+				var midpoints = {};
+
+				function mid(a, b) {
+					if (a < b) {
+						var tmp = a;
+						a = b;
+						b = tmp;
+					}
+					var index = b + "," + a;
+					if (midpoints.hasOwnProperty(index)) return midpoints[index];
+					midpoints[index] = points.length;
+					points.push(points[a].add(points[b]).mul(0.5).normalized());
+					return midpoints[index];
+				}
+
+				function generate(detail) {
+					// Generate each detail level past the current one.
+					for (var i = generatedDetail; i < detail; i++) {
+						console.log("There are " + faces.length + " faces..");
+						var f2 = [];
+						for (var j = 0; j < faces.length; j++) {
+							// Generate the midpoints of each side.
+							var face = faces[j];
+							var a = mid(face[0], face[1]);
+							var b = mid(face[1], face[2]);
+							var c = mid(face[2], face[0]);
+
+							// Push the new faces onto the new list.
+							f2.push([face[0], a, c]);
+							f2.push([face[1], b, a]);
+							f2.push([face[2], c, b]);
+							f2.push([a, b, c]);
+						}
+
+						// Discard the old faces in favour of the new ones.
+						detailLevels.push(points.length);
+						faces = f2;
+						generatedDetail++;
+					}
+					
+					return points.slice(0, detailLevels[detail]);
+				}
+
+				return {
+					generate : generate
+				};
+			})();
+
+			window.addEventListener("load", function() {
+				// Output canvas.
+				var canvas = document.getElementById("screen");
+				canvas.width = canvas.height = 500;
+				canvas.style.border = "1px solid";
+				var ctx = canvas.getContext("2d");
+				var scale = Math.min(canvas.width, canvas.height) * 0.75;
+				var cx = canvas.width / 2, cy = canvas.height / 2;
+
+				// Sneaky canvas..
+				var sneakyCanvas = document.createElement("canvas");
+				var sneakyContext = sneakyCanvas.getContext("2d");
+				var worldData;
+				var worldImage = new Image();
+				worldImage.addEventListener("load", function() {
+					sneakyCanvas.width = worldImage.width;
+					sneakyCanvas.height = worldImage.height;
+					sneakyContext.drawImage(worldImage, 0, 0);
+					worldData = sneakyContext.getImageData(0, 0, worldImage.width, worldImage.height);
+				});
+				worldImage.src = "world_blank.png";	
+
+				var rotate = new Transformation();
+				var translate = new Transformation();
+				translate.translate(new Vector(0, 0, 2));
+
+				var sphereLevel = 0;
+				var sphere = IcoSphere.generate(0);
+				
+				function nextSize() {
+					if (sphereLevel >= 6) return;
+					sphereLevel++;
+					sphere = IcoSphere.generate(sphereLevel);
+					if (typeof worldData != "undefined") {
+						sphere = sphere.filter(function(vtx) {
+							var flat = new Vector(vtx.x, 0, vtx.z).normalized();
+							var x = Math.ceil(worldImage.width * (flat.z > 0 ? Math.acos(flat.x) : 2 * Math.PI - Math.acos(flat.x)) / (2 * Math.PI)) % worldImage.width;
+							var y = Math.ceil(worldImage.height * (1 - Math.acos(vtx.y) / Math.PI)) % worldImage.height;
+							return worldData.data[(y * worldImage.width + x) * 4] > 127;
+						});
+					}
+					console.log("Sphere size " + sphereLevel + " has " + sphere.length + " vertices.");
+					setTimeout(nextSize, 100);
+				}
+				setTimeout(nextSize, 1000);
+
+				function frame() {
+					rotate.rotateY(0.01);
+
+					ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+
+					ctx.beginPath();
+					var t = Date.now() / 1000;
+					for (var i = sphere.length; i-- > 0;) {
+						var a = translate.apply(rotate.apply(sphere[i]));
+						var b = translate.apply(rotate.apply(sphere[i].mul(1.01))); //1 + (1 + Math.sin(t + 3 * sphere[i].x + 5 * sphere[i].y)) * 0.05)));
+						ctx.moveTo(cx + scale * a.x / a.z, cy + scale * a.y / a.z);
+						ctx.lineTo(cx + scale * b.x / b.z, cy + scale * b.y / b.z);
+					}
+					ctx.stroke();
+	
+					setTimeout(frame, 50);
+				}
+				setTimeout(frame, 50);
+			});
+		</script>
+	</head>
+	<body>
+		<canvas id="screen"></canvas>
+	</body>
+</html>

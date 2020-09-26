@@ -1,0 +1,73 @@
+<!doctype html>
+<title>SpaceScript</title>
+<style>
+body {
+  overflow: hidden;
+}
+
+#input, #output {
+  background-color: #000000;
+  color: #dddddd;
+  margin: 0;
+  padding: 5px;
+  box-sizing: border-box;
+  left: 0;
+  width: 100%;
+  height: 50%;
+  overflow-y: scroll;
+  position: absolute;
+  resize: none;
+}
+
+#input {
+  top: 0;
+}
+
+#output {
+  bottom: 0;
+}
+</style>
+<textarea id="input">async function f(a, b) {
+  if (await a >= b) {
+    return 1;
+  } else {
+    while (await a < b) {
+      b--;
+    }
+  }
+}
+
+async function g() {
+  return 10;
+}
+
+async function main() {
+  f(g(), 20);
+}</textarea>
+<pre id="output"></pre>
+<script src="lex.js"></script>
+<script src="parse.js"></script>
+<script src="ast.js"></script>
+<script src="check.js"></script>
+<script src="ir.js"></script>
+<script src="codegen.js"></script>
+<script>
+const input = document.getElementById("input");
+const output = document.getElementById("output");
+
+function update() {
+  try {
+    const ast = check(parse(input.value));
+    console.log("Plain AST: " + printAst(ast));
+    const flat = flatten(ast);
+    console.log("Flat AST: " + printAst(ast));
+    output.innerText = compile(flat);
+  } catch (err) {
+    output.innerText = err.message;
+    console.error(err);
+  }
+}
+
+input.addEventListener("keyup", event => update());
+update();
+</script>

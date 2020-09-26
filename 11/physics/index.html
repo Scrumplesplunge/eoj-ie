@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html>
+    
+    <head>
+        <title>
+            Canvas PhysX
+        </title>
+        <script type="text/javascript">
+        var canvas_support = false;
+try {
+    canvas_support = !! (document.createElement('canvas').getContext('2d'));
+} catch (e) {
+    canvas_support = !! (document.createElement('canvas').getContext);
+};
+var ctx;
+var ent = new Array();
+var gravity = 0.5;
+var timescale = 1;
+var bounce = 0.2;
+var airresistance = 0.01;
+var scrw = 1000;
+var scrh = 700;
+var speedlimit = 50;
+var t;
+var hsl;
+var lasttick = 0;
+var opcount = 0;
+var ec = new Array();
+
+function init() {
+    try {
+        if (canvas_support) {
+            print("<a style='color:rgb(255,200,0)'>Simulation Initialized</a>");
+        } else {
+            print("<a style='color:rgb(255,75,75)'>Error: Canvas not supported</a>");
+            return false;
+        };
+        ent = new Array();
+        var c = document.getElementById("screen");
+        ctx = c.getContext("2d");
+        for (i = 0; i < 10; i++) {
+            var rad = 10 + Math.round(Math.random() * 20);
+            var a = new Ball(500 - rad + Math.random() * 50, 30 + i * 60, rad);
+        };
+        tick();
+    } catch (err) {
+        alert("[Initialize]: " + err)
+    }
+};
+
+function CurTime() {
+    var d = new Date();
+    return d.getTime();
+};
+
+function print(str) {
+    var con = document.getElementById("console");
+    con.innerHTML += str + "<br />";
+    con.scrollTop = con.scrollHeight;
+};
+
+function cls() {
+    document.getElementById("console").innerHTML = "";
+};
+
+function speed(e) {
+    return vel = Length(vec(e.velx, e.vely));
+};
+var offset = {};
+offset.x = 0;
+offset.y = 0;
+
+function tick() {
+    try {
+        ec = new Array();
+        fps = Math.round(1000 / (CurTime() - lasttick));
+        var container = document.getElementById("container");
+        offset.x = Math.round((screen.availWidth - 1192) / 2);
+        offset.y = Math.round((screen.availHeight - 752) / 2);
+        container.style.top = offset.y + "px";
+        container.style.left = offset.x + "px";
+        lasttick = CurTime();
+        document.getElementById("ents").innerHTML = ent.length;
+        document.getElementById("ops").innerHTML = opcount * fps;
+        var fi = document.getElementById("fps");
+        fi.innerHTML = fps;
+        fi.style.color = "rgb(" + Math.round(Cos(fps * 0.9) * 255) + "," + Math.round(Sin(fps * 0.9) * 255) + ",0)";
+        hsl = 0;
+        ctx.clearRect(0, 0, scrw, scrh);
+        opcount = 13;
+        for (j = 0; j < ent.length; j++) {
+            opcount++;
+            ApplyGravity(ent[j]);
+            Collision(j, ent[j]);
+            Move(ent[j]);
+            EdgeCollision(ent[j]);
+            if (j == gEnt & grabbing == true) {
+                ent[j].x = mouse.x - offset.x;
+                ent[j].y = mouse.y - offset.y;
+                opcount += 2;
+            };
+            Draw(ent[j]);
+        };
+        if (document.getElementById("ss").checked == 1) {
+            DrawRoundedBox(5, 5, 120, 67)
+        };
+        opcount++;
+        if (hsl > 0) {
+            var end = (hsl == 1) ? "y" : "ies";
+            opcount += 2;
+        };
+        t = setTimeout("tick()", 10);
+        opcount += 2;
+    } catch (err) {
+        alert("[Physics Tick]: " + err)
+    }
+};
+
+function DrawRoundedBox(x, y, w, h) {
+    ctx.fillStyle = "rgba(0,0,0,0.75)";
+    ctx.fillRect(x + 10, y + 0, w - 20, h);
+    ctx.fillRect(x + 0, y + 10, 10, h - 20);
+    ctx.fillRect(x + w - 10, y + 10, 10, h - 20);
+    ctx.beginPath();
+    ctx.arc(x + 10, y + 10, 10, Math.PI, 1.5 * Math.PI);
+    ctx.lineTo(x + 10, y + 10);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(x + w - 10, y + 10, 10, 0, 1.5 * Math.PI, true);
+    ctx.lineTo(x + w - 10, y + 10);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(x + w - 10, y + h - 10, 10, 0, 0.5 * Math.PI);
+    ctx.lineTo(x + w - 10, y + h - 10);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(x + 10, y + h - 10, 10, 0.5 * Math.PI, Math.PI);
+    ctx.lineTo(x + 10, y + h - 10);
+    ctx.fill();
+    ctx.fillStyle = "rgb(0,0,0)";
+    opcount += 21;
+};
+
+function IsOnGround(e) {
+    if (e.type == "ball") {
+        opcount += 2;
+        if (e.y > (scrh - e.radius - gravity)) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+};
+
+function IsResting(e) {
+    opcount += 2;
+    if (e.velx < 1 & e.vely < 1) {
+        return true;
+    } else {
+        return false;
+    }
+};
+
+function ApplyGravity(e) {
+    try {
+        if (!IsOnGround(e)) {
+            e.vely += gravity * timescale;
+            opcount++;
+        };
+        opcount++;
+    } catch (err) {
+        alert("[ApplyGravity(entity e)]: " + err)
+    }
+};
+
+function Move(e) {
+    e.velx *= 1 - (airresistance * timescale);
+    if (IsOnGround(e)) {
+        e.velx *= 0.9;
+        opcount++
+    }
+    e.vely *= 1 - (airresistance * timescale);
+    v = vec(e.velx, e.vely);
+    if (Length(v) > speedlimit) {
+        hsl++;
+        v = mulVec(v, speedlimit / Length(v));
+        e.velx = v.x;
+        e.vely = v.y;
+        opcount += 4;
+    };
+    e.x += e.velx * timescale;
+    e.y += e.vely * timescale;
+    e.angvel *= 1 - airresistance;
+    e.angle += e.angvel * timescale;
+    opcount += 9;
+};
+
+function Collision(id, e) {
+    try {
+        var num = 0;
+        for (k = 0; k < ent.length; k++) {
+            if (k != id) {
+                if (CheckForCollision(e, ent[k])) {
+                    HandleCollision(e, ent[k]);
+                    num++;
+                    opcount += 2;
+                };
+                opcount++;
+            };
+            opcount++;
+        };
+        opcount += 4;
+        return num;
+    } catch (err) {
+        alert("[Collision(int id, entity e)]: " + err)
+    }
+};
+
+function EdgeCollision(e) {
+    var out = 0;
+    if (e.type == "ball") {
+        if (e.x < e.radius) {
+            e.x = e.radius;
+            e.velx = Math.abs(e.velx) * bounce;
+            out = 1;
+            opcount += 3;
+        } else if (e.x > (scrw - e.radius)) {
+            e.x = scrw - e.radius;
+            e.velx = -Math.abs(e.velx) * bounce;
+            out = 1;
+            opcount += 3;
+        };
+        if (e.y < e.radius) {
+            if (Math.abs(e.vely) < gravity) {
+                e.y = e.radius;
+                e.vely = 0;
+                opcount += 2;
+            } else {
+                e.y = e.radius;
+                e.vely = Math.abs(e.vely) * bounce;
+                opcount += 2;
+            };
+            out = 1;
+            opcount += 2;
+        } else if (e.y > (scrh - e.radius)) {
+            if (Math.abs(e.vely) < gravity) {
+                e.y = scrh - e.radius;
+                e.vely = 0;
+                opcount += 2;
+            } else {
+                e.y = scrh - e.radius;
+                e.vely = -Math.abs(e.vely) * bounce;
+                opcount += 2;
+            };
+            out = 1;
+            opcount += 2;
+        }
+    };
+    opcount += 3;
+    return out;
+};
+
+function CheckForCollision(a, b) {
+    try {
+        var apos = FindClosestVertex(a, b.x, b.y);
+        var bpos = FindClosestVertex(b, a.x, a.y);
+        opcount += 4;
+        if (Dist(bpos, a) < Dist(apos, a) | Dist(apos, b) < Dist(bpos, b)) {
+            opcount += 2;
+            return true;
+        } else {
+            opcount++;
+            return false;
+        }
+    } catch (err) {
+        alert("[CheckForCollision(entity a, entity b)]: " + err)
+    }
+};
+
+function HandleCollision(e, eb) {
+    try {
+        if (e.type == "ball" && eb.type == "ball") {
+            mod = vec(eb.x - e.x, eb.y - e.y);
+            var cv = vec(eb.velx - e.velx, eb.vely - e.vely);
+            if (Length(mod) == 0) {
+                mod = vec(cv.x * (e.radius + eb.radius) / Length(cv), cv.y * (e.radius + eb.radius) / Length(cv))
+            };
+            var D = Length(mod);
+            mod = mulVec(mod, 1 / Length(mod));
+/*            if (D < (e.radius + eb.radius)) {
+                var change = (e.radius + eb.radius) - D;
+                e.x -= mod.x * change * 0.5 + 0.5;
+                e.y -= mod.x * change * 0.5 + 0.5;
+                eb.x += mod.x * change * 0.5 + 0.5;
+                eb.y += mod.y * change * 0.5 + 0.5;
+                opcount += 5;
+*///            };
+            var ins = (e.radius + eb.radius) - D;
+            e.velx -= ins * mod.x * bounce;
+            e.vely -= ins * mod.y * bounce;
+            eb.velx += ins * mod.x * bounce;
+            eb.vely += ins * mod.y * bounce;
+            opcount += 12;
+        };
+        opcount++;
+    } catch (err) {
+        alert("[HandleCollision(entity e, entity eb)]: " + err)
+    }
+};
+
+function FindClosestVertex(e, ebx, eby) {
+    try {
+        var tar = vec(ebx, eby);
+        var out;
+        if (e.type == "ball") {
+            out = vec(ebx - e.x, eby - e.y);
+            out = mulVec(out, e.radius / Length(out));
+            out = addVec(out, vec(e.x, e.y));
+            opcount += 3;
+        } else if (e.type == "box") {
+            var close = e.vertex[0];
+            for (z = 1; z < 4; z++) {
+                if (Dist(e.vertex[z], tar) < Dist(close, tar)) {
+                    close = e.vertex[z];
+                    opcount++;
+                };
+                opcount++;
+            };
+            out = close;
+            opcount += 3;
+        };
+        opcount += 5;
+        return out;
+    } catch (err) {
+        alert("[FindClosestVertex(entity e, number ebx, number eby)]: " + err)
+    }
+};
+
+function Vec2Ang(v) {
+    var va = ACos(v.y);
+    if (ASin(vec.x) < 0) {
+        va = 360 - va;
+        opcount++;
+    };
+    opcount += 3;
+    return va;
+};
+
+function Length(v) {
+    opcount++;
+    return Math.sqrt(Math.pow(v.x, 2) + Math.pow(v.y, 2));
+};
+
+function Dist(a, b) {
+    try {
+        opcount++;
+        return Math.sqrt(Math.pow(a.x - b.x, 2) + Math.pow(a.y - b.y, 2));
+    } catch (err) {
+        alert("[Dist(entity a, entity b)]: " + err)
+    }
+};
+
+function Sin(deg) {
+    try {
+        opcount++;
+        return Math.sin(deg * 2 * Math.PI / 360);
+    } catch (err) {
+        alert("[Sine]: " + err)
+    }
+};
+
+function Cos(deg) {
+    try {
+        opcount++;
+        return Math.cos(deg * 2 * Math.PI / 360);
+    } catch (err) {
+        alert("[Cosine]: " + err)
+    }
+};
+
+function ASin(num) {
+    try {
+        opcount++;
+        return Math.asin(num) * 360 / (2 * Math.PI);
+    } catch (err) {
+        alert("[Cosine]: " + err)
+    }
+};
+
+function ACos(num) {
+    try {
+        opcount++;
+        return Math.acos(num) * 360 / (2 * Math.PI);
+    } catch (err) {
+        alert("[Cosine]: " + err)
+    }
+};
+var Ball = function(x, y, rad) {
+        try {
+            this.id = ent.length;
+            ent[this.id] = new Object;
+            ent[this.id].type = "ball";
+            ent[this.id].id = this.id;
+            ent[this.id].x = x;
+            ent[this.id].y = y;
+            ent[this.id].mass = Math.round(Math.PI * rad * rad);
+            ent[this.id].velx = 0;
+            ent[this.id].vely = 0;
+            ent[this.id].radius = rad;
+            ent[this.id].color = "rgb(" + Math.round(100 + Math.random() * 155) + "," + Math.round(100 + Math.random() * 155) + "," + Math.round(100 + Math.random() * 155) + ")";
+            ent[this.id].vertex = new Array();
+            print("<a style='color:" + ent[this.id].color + "'>Ball</a> Created (radius <a style='color:rgb(255,200,0)'>" + rad + "</a>, mass <a style='color:rgb(255,200,0)'>" + ent[this.id].mass + "</a> <a style='color:rgb(0,200,255)'>[" + this.id + "]</a>");
+            opcount += 11;
+        } catch (err) {
+            alert("[Ball(int x, int y, int rad)]: " + err)
+        }
+    };
+
+function ApplyForce(e, x, y) {
+    try {
+        e.velx += x / e.mass;
+        e.vely += y / e.mass;
+        opcount + 2;
+    } catch (err) {
+        alert("[Ball.ApplyForce(int x, int y)]: " + err)
+    }
+};
+
+function vec(x, y) {
+    var out = new Object();
+    out.x = x;
+    out.y = y;
+    opcount += 4;
+    return out;
+};
+
+function mulVec(a, b) {
+    var out = vec(a.x * b, a.y * b);
+    opcount += 2;
+    return out;
+};
+
+function addVec(a, b) {
+    var out = vec(a.x + b.x, a.y + b.y);
+    opcount += 2;
+    return out;
+};
+
+function subVec(a, b) {
+    var out = vec(a.x - b.x, a.y - b.y);
+    opcount += 2;
+    return out;
+};
+
+function Draw(e) {
+    try {
+        ctx.fillStyle = e.color;
+        if (e.type == "ball") {
+            ctx.beginPath();
+            ctx.arc(e.x, e.y, e.radius, 0, Math.PI * 2, true);
+            ctx.fill();
+            opcount += 3;
+        } else if (e.type == "box") {
+            e.vertex = new Array();
+            var up = vec(Sin(this.ang), -Cos(this.ang));
+            var right = vec(Cos(this.ang), Sin(this.ang));
+            var tmp = mulVec(up, this.center.y);
+            tmp = addVec(tmp, this.pos);
+            var start = addVec(tmp, mulVec(right, -this.center.x));
+            e.vertex[0] = start;
+            ctx.beginPath();
+            ctx.moveTo(start.x, start.y);
+            var pos = addVec(start, mulVec(right, this.width));
+            e.vertex[1] = pos;
+            ctx.lineTo(pos.x, pos.y);
+            pos = addVec(pos, mulVec(up, -this.height));
+            e.vertex[2] = pos;
+            ctx.lineTo(pos.x, pos.y);
+            pos = addVec(pos, mulVec(right, -this.width));
+            e.vertex[3] = pos;
+            ctx.lineTo(pos.x, pos.y);
+            ctx.lineTo(start.x, start.y);
+            ctx.fill();
+            opcount += 20;
+        };
+        opcount += 2;
+    } catch (err) {
+        alert("[Draw(entity e)]: " + err)
+    }
+};
+
+function changed(box, name) {
+    var old = "[ERROR]";
+    if (name == "timescale") {
+        old = timescale;
+        timescale = box.value;
+        opcount += 2;
+    };
+    if (name == "gravity") {
+        old = gravity;
+        gravity = box.value;
+        opcount += 2;
+    };
+    if (old != "[ERROR]") {
+        print("<a style='color:rgb(0,200,255)'>Control Variable " + name + " changed from " + old + " to " + eval(name));
+        opcount++;
+    };
+    opcount += 4;
+};
+
+function printInfo() {
+    var te = 0;
+    var tm = 0;
+    for (i = 0; i < ent.length; i++) {
+        opcount += 2;
+        tm += ent[i].mass;
+        te += 0.5 * 0.001 * ent[i].mass * Math.pow(speed(ent[i]), 2);
+    };
+    if (tm < 1000) {
+        tms = (Math.round(tm * 100) / 100) + " Grams";
+        opcount++;
+    } else if (tm < 1000000) {
+        tms = (Math.round(tm / 10) / 100) + " Kilograms";
+        opcount++;
+    } else if (tm < 1000000000) {
+        tms = (Math.round(tm / 10000) / 100) + " Tonnes";
+        opcount++;
+    };
+    if (te < 1000) {
+        tes = (Math.round(te * 100) / 100) + " Joules";
+        opcount++;
+    } else if (te < 1000000) {
+        tes = (Math.round(te / 10) / 100) + " Kilojoules";
+        opcount++;
+    } else if (te < 1000000000) {
+        tes = (Math.round(te / 10000) / 100) + " Megajoules";
+        opcount++;
+    };
+    print("<a style='color:rgb(255,200,0)'>-- Simulation Information --</a>");
+    print("<a style='color:rgb(0,200,255)'>Control Variables:</a>");
+    print("Gravity: " + gravity);
+    print("Air Resistance: " + airresistance);
+    print("Ball Bounce Multiplier: " + bounce);
+    print("Speed Limit: " + speedlimit);
+    print("<br /><a style='color:rgb(255,200,0)'>Entity Information:</a>");
+    print("Number of Entities: " + ent.length);
+    print("Total Energy: " + tes);
+    print("Total Mass: " + tms);
+    opcount += 13;
+};
+
+function phys_debug() {
+    cmd = prompt("Enter an expression to evaluate:", "timescale=0");
+    print("<a style='color:rgb(0,200,255)'>" + cmd + "..</a>");
+    try {
+        eval(cmd)
+    } catch (err) {
+        print("<a style='color:rgb(255,75,75)'>Error: " + err + "</a>")
+    }
+};
+
+function magic(e) {
+    if (e.innerHTML == "Scrumplesplunge") {
+        e.innerHTML = "Joe Fowler"
+    } else {
+        e.innerHTML = "Scrumplesplunge"
+    }
+};
+var gEnt = 0;
+var grabbing = false;
+var mouse = {};
+mouse.x = 0;
+mouse.y = 0;
+mvel = {};
+mvel.x = 0;
+mvel.y = 0;
+
+function grabEnt() {
+    var cmp = subVec(mouse, offset);
+    for (e in ent) {
+        if (ent[e].type == "ball") {
+            if (Length(subVec(vec(ent[e].x, ent[e].y), cmp)) < ent[e].radius) {
+                gEnt = e;
+                grabbing = true;
+                break;
+            }
+        }
+    }
+};
+
+function dropEnt() {
+    if (grabbing) {
+        ent[gEnt].velx = mvel.x;
+        ent[gEnt].vely = mvel.y;
+    };
+    gEnt = 0;
+    grabbing = false;
+};
+
+function mpos(e) {
+    e = (window.event) ? window.event : e;
+    ox = mouse.x;
+    oy = mouse.y;
+    if (e.pageX || e.pageY) {
+        mouse.x = e.pageX;
+        mouse.y = e.pageY;
+    } else if (e.clientX || e.clientY) {
+        mouse.x = e.clientX + document.body.scrollLeft + document.documentElement.scrollLeft;
+        mouse.y = e.clientY + document.body.scrollTop + document.documentElement.scrollTop;
+    } else {
+        mouse.x = 0;
+        mouse.y = 0;
+    };
+    mvel.x = mouse.x - ox;
+    mvel.y = mouse.y - oy;
+}
+        </script>
+    </head>
+    
+    <body onload="init()" style="background-color:rgb(0,0,0);font-family:Tahoma;color:rgb(255,255,255)">
+        <div id="container" style="background-color:rgb(255,255,255);position:absolute;top:50px;left:50px">
+            <div style="background-color:rgb(100,100,100);border-style:solid;border-width:1px;position:absolute;top:0px;left:0px;width:1000px;height:700px">
+                <div style="position:absolute;top:300px;width:100%;text-align:center;font-size:15pt">
+                    Oh No! It appears you have an incompatible Browser!
+                    <br />
+                    <p style="font-size:12pt">
+                        This physics simulation relies on Canvas to display its output.
+                        <br />
+                        Currently, Canvas is only supported on the browsers listed below.
+                        <br />
+                        In the meantime, however, you can still enjoy the
+                        <a style="color:rgb(255,200,0)" onmouseover="this.style.color='rgb(255,255,255)';"
+                        onmouseout="this.style.color='rgb(255,200,0)';" href="older_physX.html">Older Version</a>
+                    </p>
+                    <div style="position:absolute;top:105px;left:0px;background-color:rgb(255,255,255);width:100%;height:70px;">
+                        <a href="http://www.mozilla-europe.org/en/firefox/"><img style="border-style:none;position:absolute;left:325px;top:10px" src="http://www.w3schools.com/browsers/pic_firefox.jpg" /></a>
+                        <a href="http://www.opera.com/"><img style="border-style:none;position:absolute;left:425px;top:10px" src="http://www.w3schools.com/browsers/pic_opera.jpg" /></a>
+                        <a href="http://www.google.co.uk/chrome"><img style="border-style:none;position:absolute;left:525px;top:10px" src="http://www.w3schools.com/browsers/pic_chrome.gif" /></a>
+                        <a href="http://www.apple.com/safari/download/"><img style="border-style:none;position:absolute;left:625px;top:10px" src="http://www.w3schools.com/browsers/pic_safari.gif" /></a>
+                    </div>
+                </div>
+                <canvas style="position:absolute;top:0px;left:0px;background-color:rgb(255,255,255)"
+                id="screen" width="1000" height="700" onmousedown="grabEnt( )" onmouseup="dropEnt( )"
+                onmouseout="dropEnt( )" onmousemove="mpos( event )">
+                </canvas>
+                <!--<div style="position:absolute;top:0px;left:0px;width:1000px;height:700px"></div>-->
+            </div>
+            <div id="console" style="position:absolute;top:0px;left:1002px;overflow:auto;padding:5px;font-family:Tahoma;font-size:10pt;background-color:rgb(50,50,50);color:rgb(255,255,255);width:190px;height:692px">
+            </div>
+            <div style="padding:5px;background-color:rgb(75,75,75);color:rgb(255,255,255);font-family:Tahoma;font-size:10pt;position:absolute;top:702px;left:0px;width:1192px;height:50px">
+                Timescale:
+                <input type="text" value="1.0" onchange="changed(this,'timescale')" />
+                Gravity:
+                <input type="text" value="0.5" onchange="changed(this,'gravity')" />
+                <input type="button" value="Spawn Ball" onclick="var a=new Ball(300+Math.random()*400,30,10+Math.round(Math.random()*20))"
+                />
+                <input type="button" value="Print Simulation Info" onclick="printInfo()"
+                />
+                <input type="button" value="Run Command.." onclick="phys_debug()" />
+                <input type="button" value="Refresh Simulation" onclick="clearTimeout(t);cls();init()"
+                />
+                <input id="ss" type="checkbox" onchange="var s=document.getElementById('stats');if(this.checked==1){s.style.display='block'}else{s.style.display='none'}"
+                />
+                Display Info
+                <br />
+                Simulation written by
+                <a href="javascript:void()" style="text-decoration:none;color:rgb(0,200,255)"
+                onmouseover="this.style.color='rgb(255,255,255)';" onmouseout="this.style.color='rgb(0,200,255)';"
+                onclick="magic(this);">Scrumplesplunge</a>
+                -
+                <a style="color:rgb(255,200,0)" onmouseover="this.style.color='rgb(255,255,255)';"
+                onmouseout="this.style.color='rgb(255,200,0)';" href="old_physX.html">Old Version</a>
+                -
+                <a style="color:rgb(255,200,0)" onmouseover="this.style.color='rgb(255,255,255)';"
+                onmouseout="this.style.color='rgb(255,200,0)';" href="older_physX.html">Older Version</a>
+            </div>
+            <div id="stats" style="display:none;width:120px;height:40px;position:absolute;top:10px;left:15px;color:rgb(255,200,0)">
+                Entities:
+                <a style="color:rgb(0,200,255)" id="ents">0</a>
+                <br />
+                Ops:
+                <a style="color:rgb(255,200,0)" id="ops">0</a>
+                <br />
+                FPS:
+                <a style="color:rgb(255,0,0)" id="fps">0</a>
+                <br />
+            </div>
+        </div>
+    </body>
+
+</html>

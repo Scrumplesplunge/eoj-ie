@@ -1,0 +1,62 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="created" content="2017-10-01T17:57:10+00:00">
+<meta name="keywords" content="javascript">
+<link id="theme" rel="stylesheet" href="/themes/default.css">
+<script>
+// Take a look in /themes if you want to pick a different one.
+document.getElementById("theme").href =
+    localStorage.theme || "/themes/default.css";
+</script>
+<title>Custom Regex</title>
+<header id="header">
+<h1>Custom Regex</h1>
+<time datetime="2017-10-01T17:57:10+00:00">Sunday 1st October 2017 at 18:57 IST</time>
+<p>
+<a class="previous" href="/9">← Quest</a>
+<a class="next" href="/11">Nostalgia →</a>
+<br style="clear: both">
+</p>
+</header>
+<p>This weekend I decided to try and write my own regular expression engine, based
+on two articles that I have read in the past: <a href="https://swtch.com/~rsc/regexp/regexp1.html">Regular Expression Matching Can
+Be Simple And Fast</a> and its follow-up <a href="https://swtch.com/~rsc/regexp/regexp2.html">Regular Expression Matching: the
+Virtual Machine Approach</a>. Check it out <a href="demo.html">here</a>, or read on to see an
+explanation.</p>
+
+<p>[see more]</p>
+
+<p>The engine is broken into three main parts:</p>
+
+<ul>
+<li><strong>parse.js</strong>: Parse the regular expression syntax into an abstract tree.</li>
+<li><strong>compile.js</strong>: Generate VM code for the regular expression.</li>
+<li><strong>run.js</strong>: Execute VM code on a string.</li>
+</ul>
+
+
+<p>The syntax is more like lex-style regular expressions than other styles. It has
+quotation marks around literal sequences and characters in character sets. This
+allows the regular expression to have insignificant whitespace and comments,
+which can improve readability of the regex. Below is an example regular
+expression:</p>
+
+<pre><code>(  # Wrap everything in a group so that the full match is captured.
+  "foo"                  # Literal sequence of characters.
+  (['0'-'9', 'a'-'f']+)  # One or more hex digits.
+  "bar"                  # Partially overlaps with hex digits.
+|
+  "socks"
+)
+</code></pre>
+
+<p>The runtime implementation is similar to <strong>Pike&rsquo;s Implementation</strong> as described
+in the second of the two articles mentioned above. Execution is broken into
+&ldquo;threads&rdquo;, which are effectively just active states in the abstract NFA of the
+language. Each thread contains state describing subgroup matches, and the number
+of threads is bounded by the number of instructions in the compiled regular
+expression. If two threads have the same instruction address, they will
+forevermore behave identically, so it is unnecessary to track both. The subgroup
+match information for one thread is discarded. One could alternatively track
+both threads and eventually have every possible subgroup matching available.</p>

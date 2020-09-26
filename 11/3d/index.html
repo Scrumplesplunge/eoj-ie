@@ -1,0 +1,131 @@
+<html>
+    <head>
+        <title>Scrump's 3d Renderer</title>
+        <script type="text/javascript" src="3d.js"></script>
+		<script type="text/javascript">
+			region.x = 600;
+			region.y = 450;
+			
+			function startup( ) {
+				camera.pos = Vector(0,0,0.5);
+				camera.ang = Angle(-45,0);
+				camera.light.pos = Vector(-3,-3,-1);
+				camera.light.power = 1.5;
+				camera.light.contrast = 1.2;
+                cvar.Set("r_wireframe",0);
+                cvar.Set("r_fill",1);
+                cvar.Set("r_alpha",1);
+				cvar.Set("r_targetfps",100);
+                cv1 = document.getElementById("screena");
+                cv2 = document.getElementById("screenb");
+                area = cv1.getContext("2d");
+                cv1s = true;
+				think();
+			}
+			hook.Add("init","startup","startup( )");
+			
+			var oval=0;
+            var dist=5;
+			function thinking( ) {
+				area.fillStyle = "rgb(200,255,255)";
+				area.fillRect(0,0,region.x,region.y);
+				var shape = util.cone.slice();
+				var sval = util.Sin( ( CurTime() * 200 ) % 360 ) * 0.5;
+				shape = util.MoveBy( shape.slice() , Vector( 0 , 0 , sval-oval ) );
+				oval = sval;
+				if(document.getElementById("console").value==""|document.getElementById("console").value=="Console"){
+					document.getElementById("condisp").value="FPS: " + cvar.Get("r_fps");
+				}
+                if(dist<15){
+                    dist+=0.05;
+                }
+                if(drag){
+                    camera.ang.y=store.yaw+(mouse.x-store.x)*0.5;
+                    camera.ang.p=(store.pitch+(mouse.y-store.y)*0.5);
+                }
+				var tvec = Vector( -dist , 0 , 0 );
+				camera.pos = MulVec( util.AngToVec( camera.ang ) , -dist );
+                shape = util.Rotate(shape.slice(),1);
+				var ground = [
+					[Vector(50,150,0),Vector(0,0,1),Vector(-9999,-9999,-25),Vector(-9999,9999,-25),Vector(9999,9999,-25),Vector(9999,-9999,-25)]
+				];
+                util.Draw(ground.slice());
+                util.Draw(shape.slice());
+			}
+			hook.Add("think","update","thinking()");
+			
+            var drag = false;
+            var store = {};
+            var mouse = {};
+			function startDrag( e ) {
+				drag = true;
+				e = ( window.event ) ? window.event : e;
+				if (e.pageX||e.pageY) {
+					mouse.x = e.pageX;
+					mouse.y = e.pageY;
+                } else if (e.clientX||e.clientY) {
+                    mouse.x = e.clientX+document.body.scrollLeft+document.documentElement.scrollLeft;
+                    mouse.y = e.clientY+document.body.scrollTop+document.documentElement.scrollTop;
+                } else {
+                    mouse.x = 0;
+                    mouse.y = 0;
+                }
+				store.pitch = camera.ang.p;
+				store.yaw = camera.ang.y;
+				store.x = mouse.x;
+				store.y = mouse.y;
+			}
+            function mouseMove(e) {
+                e = (window.event) ? window.event : e;
+                if (e.pageX||e.pageY) {
+                    mouse.x = e.pageX;
+                    mouse.y = e.pageY;
+                } else if (e.clientX||e.clientY) {
+                    mouse.x = e.clientX+document.body.scrollLeft+document.documentElement.scrollLeft;
+                    mouse.y = e.clientY+document.body.scrollTop+document.documentElement.scrollTop;
+                } else {
+                    mouse.x = 0;
+                    mouse.y = 0;
+                }
+				if ( drag ) {
+					store.pitch -= ( mouse.y - store.y ) / 2;
+					store.yaw += ( mouse.x - store.x ) / 2;
+					store.x = mouse.x;
+					store.y = mouse.y;
+				}
+            }
+			function endDrag( ) {
+				drag = false;
+				store = {};
+			}
+			function fullscreen( ) {
+				document.getElementById( "fscreen" ).style.display = "block";
+				cv1 = document.getElementById( "fscreena" );
+				cv1.width = screen.width;
+				cv1.height = screen.height;
+				cv2 = document.getElementById( "fscreenb" );
+				cv2.width = screen.width;
+				cv2.height = screen.height;
+				region.x = screen.width;
+				region.y = screen.height;
+			}
+		</script>
+    </head>
+    <body style="margin:0px;background-color:rgb(0,0,0)">
+        <div style="position:absolute;top:50%;left:50%;width:1px;height:1px">
+            <div style="position:absolute;top:-245px;left:-300px;width:600px;height:490px;background-color:rgb(255,255,255)">
+                <canvas id="screena" width="600" height="450" style="position:absolute;top:0px;left:0px"></canvas>
+                <canvas id="screenb" width="600" height="450" style="position:absolute;top:0px;left:0px"></canvas>
+				<div style="width:600px;height:450px;position:absolute;top:50px;left:50px" onmousemove="mouseMove(event)" onmouseout="endDrag( )" onmousedown="startDrag( )" onmouseup="endDrag( )"></div>
+                <textarea id="condisp" disabled=true style="color:rgb(175,0,0);position:absolute;top:448px;left:0px;width:500px;font-family:Tahoma"></textarea>
+                <input type="text" id="console" onkeypress="concmd(event)" style="position:absolute;top:470px;left:0px;width:500px;color:rgb(150,150,150);font-family:Tahoma" value="Console" onfocus="if(this.value=='Console'){this.value='';this.style.color='rgb(0,0,0)'}" onblur="if(this.value==''){this.value='Console';this.style.color='rgb(150,150,150)'}" />
+				<input type="button" value="Fullscreen" onclick="fullscreen( )" style="position:absolute;top:448px;left:497px;width:105px;height:48px" />
+            </div>
+        </div>
+		<div id="fscreen" style="position:absolute;top:0px;left:0px;width:100%;height:100%;display:none">
+            <canvas id="fscreena" width="1000" height="750" style="position:absolute;top:0px;left:0px"></canvas>
+            <canvas id="fscreenb" width="1000" height="750" style="position:absolute;top:0px;left:0px"></canvas>
+			<div style="width:100%;height:100%;position:absolute;top:0px;left:0px" onmousemove="mouseMove(event)" onmouseout="endDrag( )" onmousedown="startDrag( )" onmouseup="endDrag( )"></div>
+		</div>
+    </body>
+</html>

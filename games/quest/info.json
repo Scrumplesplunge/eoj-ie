@@ -1,0 +1,10 @@
+{
+  "title": "Quest",
+  "description": "A 2D platformer prototype with 2 levels. Run to the end portal before your life is drained.",
+  "created": "2017-07-29T22:10:27Z",
+  "source": "https://github.com/Scrumplesplunge/ludumdare39",
+  "ludum-dare": {
+    "event": "Ludum Dare 39",
+    "theme": "Running Out Of Power"
+  }
+}

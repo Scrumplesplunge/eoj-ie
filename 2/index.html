@@ -1,0 +1,216 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="created" content="2016-12-10T17:43:19+00:00">
+<meta name="keywords" content="c++, hacks">
+<link id="theme" rel="stylesheet" href="/themes/default.css">
+<script>
+// Take a look in /themes if you want to pick a different one.
+document.getElementById("theme").href =
+    localStorage.theme || "/themes/default.css";
+</script>
+<title>Python-like Comparisons in C++</title>
+<header id="header">
+<h1>Python-like Comparisons in C++</h1>
+<time datetime="2016-12-10T17:43:19+00:00">Saturday 10th December 2016 at 17:43 GMT</time>
+<p>
+<a class="previous" href="/1">← Markdown Demo</a>
+<a class="next" href="/3">Recursive Circles Fractal →</a>
+<br style="clear: both">
+</p>
+</header>
+<p>The other day, somebody at work challenged me to get comparisons like Python to
+work in C++. Well, challenge accepted:</p>
+
+<pre><code>#include "hacky_comparison.h"
+...
+if (COMPARE(0 &lt; i &lt; 10)) {
+  ...
+}
+</code></pre>
+
+<p>For those who are unfamiliar with python comparisons, they allow you to chain
+several comparisons together in a more intuitive manner than C++:</p>
+
+<pre><code>// C++
+if (0 &lt;= i &amp;&amp; i &lt; 10) {
+  ...
+}
+
+# Python
+if 0 &lt;= i &lt; 10:
+  pass
+</code></pre>
+
+<p>If you were to write something like the python comparison above in C++, you
+would probably find that it compiles (possibly with warnings) but has very
+unexpected results. So, how can we make comparisons like this work in C++?</p>
+
+<p>Firstly, I should mention that the solution that I created is flawed, and has
+some very subtle differences from the python comparisons that cannot be easily
+remedied. These differences only really occur in the less common cases, and
+I will mention them when we get to them.</p>
+
+<p>Secondly, I should warn that putting code like this in any serious projects is
+likely to result in you being lynched by coworkers or friends. It&rsquo;s probably not
+a good idea to try and make the language appear to be capable of something that
+it is not capable of, but hey, that&rsquo;s what makes this a hack!</p>
+
+<p>Warnings out of the way, the first thing to do is examine how C++ parses such
+expressions so that we can find some way of hacking around it. In particular, we
+need to examine the <a href="http://en.cppreference.com/w/cpp/language/operator_precedence">operator precedence and associativity</a> of the comparison
+operators that we are interested in.</p>
+
+<p>I will be talking about comparison operators a lot, so I will use the following
+groupings to keep things simple:</p>
+
+<ul>
+<li>The <strong>equality operator</strong> is <code>==</code>.</li>
+<li>The <strong>order operators</strong> are <code>&lt;</code>, <code>&gt;</code>, <code>&lt;=</code>, and <code>&gt;=</code>.</li>
+</ul>
+
+
+<p>In C++, the order operators have the same precedence as each other. However, the
+order operators have slightly higher precedence than the equality operator. All
+of these operators associate left to right. If any of this sounds unfamiliar,
+you might want to check out the link above, or you can try to grok it from these
+examples:</p>
+
+<pre><code>// Operators from the same group associate left-to-right.
+(a &lt; b &lt; c)    =&gt;  ((a &lt; b) &lt; c)
+(a &lt;= b &lt; c)   =&gt;  ((a &lt;= b) &lt; c)
+(a == b == c)  =&gt;  ((a == b) == c)
+
+// Operators from different groups bracket based on precedence.
+(a &lt; b == c)   =&gt;  ((a &lt; b) == c)
+(a == b &lt; c)   =&gt;  (a == (b &lt; c))
+</code></pre>
+
+<p>So, notice how if we stick within one operator group, we always see brackets on
+the left hand side. This is what we will exploit.</p>
+
+<p>&ldquo;But wait,&rdquo; you might be thinking, &ldquo;surely if we calculate <code>a &lt; b</code> first, then
+we only have a boolean value left over to compare against <code>c</code>!&rdquo;. Well, you would
+be correct if the type we are comparing had a sensible definition of <code>&lt;</code>, but we
+are talking about a hack here!</p>
+
+<p>To make these comparisons work, we wrap up the items from our comparison in
+a special type:</p>
+
+<pre><code>template &lt;typename T&gt;
+struct Intermediate {
+  operator bool() { return result; }
+  T value;
+  bool result;
+};
+</code></pre>
+
+<p>Next, we define our operators for comparing an instance of <code>Intermediate&lt;T&gt;</code>
+against an instance of <code>T</code>. To keep this concise, we can use a macro to remove
+the manual boilerplate:</p>
+
+<pre><code>#define DEFINE_OP(op)  \
+  template &lt;typename T&gt;  \
+  Intermediate&lt;T&gt; operator op(Intermediate&lt;T&gt; lhs, T rhs) {  \
+    return Intermediate{rhs, lhs.result &amp;&amp; lhs.value op rhs};  \
+  }
+DEFINE_OP(&lt;);
+DEFINE_OP(&gt;);
+DEFINE_OP(&lt;=);
+DEFINE_OP(&gt;=);
+DEFINE_OP(==);
+#undef DEFINE_OP
+</code></pre>
+
+<p>Now, we can write something like:</p>
+
+<pre><code>// Equivalent to 1 &lt; 2 &lt; 3 in Python:
+if (Intermediate&lt;int&gt;{1, true} &lt; 2 &lt; 3) {
+  ...
+}
+</code></pre>
+
+<p>Which works as we would like! However, it&rsquo;s not that attractive. We have to have
+this great big type wrapper around the first item. That&rsquo;s not good. To fix this,
+we have to turn the hack up to 11:</p>
+
+<pre><code>struct MakeInitial {} make_initial;
+
+template &lt;typename T&gt;
+Intermediate&lt;T&gt; operator&lt;(MakeInitial _, T value) {
+  return Intermediate&lt;T&gt;{value, true};
+}
+</code></pre>
+
+<p>Now, we have this singleton type <code>MakeInitial</code> and some operator for it which
+produces our first element. Due to the precedence and associativity of the
+operator <code>&lt;</code>, this allows us to write something like:</p>
+
+<pre><code>(make_initial &lt; 1 &lt; 2 &lt; 3)  =&gt;  (((make_initial &lt; 1) &lt; 2) &lt; 3)
+</code></pre>
+
+<p>As you can see, the first thing to be evaluated is the magic <code>make_initial</code>
+operator, which sets up our first element. All that remains is to hide away
+these gritty internals in a macro:</p>
+
+<pre><code>#define COMPARE(expr) (make_initial &lt; expr)
+</code></pre>
+
+<p>Now we can finally write what we wanted from the start:</p>
+
+<pre><code>if (COMPARE(1 &lt; 2 &lt; 3)) {
+  ...
+}
+</code></pre>
+
+<p>Awesome! Now to start making heavy use of this in all my projects! But wait,
+there is one small issue:</p>
+
+<pre><code>COMPARE(false)
+=&gt;
+(make_initial &lt; false)
+=&gt;
+Intermediate&lt;T&gt;{false, true}
+=&gt; (when converted to bool)
+true
+</code></pre>
+
+<p>To make this go away, all we have to do is introduce a special type for the
+first element, update the <code>make_initial</code> operator, and add overloads for this
+new type. Wrapping it all up in a namespace, this leaves us with:</p>
+
+<pre><code>namespace wat {
+
+template &lt;typename T&gt;
+struct Initial {
+  operator T() { return value; }
+  T value;
+};
+
+template &lt;typename T&gt;
+Initial&lt;T&gt; operator&lt;(MakeInitial _, T value) {
+  return Initial&lt;T&gt;{value};
+}
+
+#define DEFINE_OP(op)  \
+  template &lt;typename T&gt;
+  Intermediate&lt;T&gt; operator op(Initial&lt;T&gt; lhs, T rhs) {
+    return Intermediate&lt;T&gt;{rhs, lhs.value op rhs};
+  }
+  template &lt;typename T&gt;
+  Intermediate&lt;T&gt; operator op(Intermediate&lt;T&gt; lhs, T rhs) {
+    return Intermediate&lt;T&gt;{rhs, lhs.result &amp;&amp; lhs.value op rhs};
+  }
+DEFINE_OP(&lt;);
+DEFINE_OP(&gt;);
+DEFINE_OP(&lt;=);
+DEFINE_OP(&gt;=);
+DEFINE_OP(==);
+#undef DEFINE_OP
+
+}  // namespace wat
+
+#define COMPARE(expr) (wat::make_initial &lt; expr)
+</code></pre>
+
+<p>Job done.</p>

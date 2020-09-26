@@ -1,0 +1,76 @@
+<html>
+  <head>
+    <script src="run.js"></script>
+    <script src="parse.js"></script>
+    <script src="compile.js"></script>
+    <script src="jsr.js"></script>
+    <style>
+      textarea { width: 100%; height: 30%; }
+    </style>
+  </head>
+  <body>
+    Input:<br />
+    <textarea id="input">foo123bar</textarea><br />
+    Pattern:<br />
+    <textarea id="pattern">(
+  "foo"                  # Literal sequence of characters.
+  (['0'-'9', 'a'-'f']+)  # One or more hex digits.
+  "bar"                  # Partially overlaps with hex digits.
+|
+  "socks"
+)</textarea><br />
+    Result: <span id="time"></span><br />
+    <textarea id="result" disabled></textarea>
+
+    <script>
+      let input = document.getElementById("input");
+      let pattern = document.getElementById("pattern");
+      let time = document.getElementById("time");
+      let result = document.getElementById("result");
+
+      function update() {
+        time.innerText = "";
+        let regex;
+        try {
+          regex = new Regex(pattern.value);
+        } catch (error) {
+          result.value = "Regex compile error: " + error.message;
+          result.style.color = "#ff0000";
+          return;
+        }
+        function print(op, address) {
+          return address + ": " + op.constructor.name + " " +
+                 JSON.stringify(op);
+        }
+        console.log("Regex:\n" + pattern.value);
+        console.log("AST: ", (new Parser(pattern.value)).parse());
+        console.log("Compiled to:\n" + regex.program.map(print).join("\n"));
+        let match;
+        try {
+          let start = Date.now();
+          match = regex.match(input.value);
+          let end = Date.now();
+          time.innerText = (end - start) + "ms";
+        } catch (error) {
+          result.value = "Regex match error: " + error.message;
+          result.style.color = "#ff0000";
+          return;
+        }
+        if (match == null) {
+          result.value = "No match";
+          result.style.color = "#888888";
+          return;
+        }
+        let groups = {};
+        for (let [group, value] of match) groups[group.toString()] = value;
+        result.value = JSON.stringify(groups, null, "  ");
+        result.style.color = "#000000";
+      }
+
+      update();
+
+      input.addEventListener("keyup", update);
+      pattern.addEventListener("keyup", update);
+    </script>
+  </body>
+</html>

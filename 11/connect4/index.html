@@ -1,0 +1,145 @@
+<html>
+	<head>
+		<title>Connect 4</title>
+		<script type="text/javascript" src="jlib.js"></script>
+		<script type="text/javascript">
+			( function( ) {
+				window.Connect = {
+					fps: 50,
+					size: 7,
+					gravity: -98,
+					color_a: "rgb(255,0,0)",
+					color_b: "rgb(255,255,0)",
+					team_a: "Red",
+					team_b: "Yellow",
+					gridSize: function( ) { return Math.min( Page.width( ), Page.height( ) ) * 0.9 },
+					toScreen: function( x, y ) {
+						var g = this.gridSize( );
+						return [
+							( Page.width( ) - g ) / 2 + x * g / this.size,
+							( Page.height( ) + g ) / 2 - y * g / this.size,
+							g
+						];
+					},
+					toWorld: function( x, y ) {
+						var g = this.gridSize( );
+						return [
+							( x - ( Page.width( ) - g ) / 2 ) * this.size / g,
+							( ( Page.height( ) + g ) / 2 - y ) * this.size / g
+						];
+					},
+					hasWon: function( type, x, y, a, b ) {
+						if ( a || b ) return ( this.grid[ x ] && this.grid[ x ][ y ] == type ) ? 1 + this.hasWon( type, x + a, y + b, a, b ) : 0;
+						return ( this.hasWon( type, x, y, 0, -1 ) >= 4 || this.hasWon( type, x, y, 1, 1 ) + this.hasWon( type, x-1, y-1, -1, -1 ) >= 4 || this.hasWon( type, x, y, 1, 0 ) + this.hasWon( type, x-1, y, -1, 0 ) >= 4 || this.hasWon( type, x, y, -1, 1 ) + this.hasWon( type, x+1, y-1, 1, -1 ) >= 4 ) ? true : false;
+					},
+					drawCounter: function( ctx, x, y, type ) {
+						with ( ctx ) {
+							fillStyle = type == 1 ? this.color_a : this.color_b;
+							var shadow = shadowColor;
+							shadowColor = "rgba(0,0,0,0.5)";
+							shadowBlur = 5;
+							shadowOffsetX = shadowOffsetY = 1;
+							var coords = this.toScreen( x + 0.5, y + 0.5 );
+							beginPath( );
+							arc( coords[ 0 ], coords[ 1 ], coords[ 2 ] * 0.45 / this.size, 0, 2 * Math.PI, true );
+							fill( );
+							shadowColor = shadow;
+						}
+					},
+					init: function( self ) {
+						this.canvas = document.createElement( "canvas" );
+						if ( !this.canvas || !this.canvas.getContext ) return alert( "Warning:\nCanvas is not supported." );
+						with ( this.canvas ) {
+							width = Page.width( );
+							height = Page.height( );
+						}
+						Util.get( "game" )[ 0 ].appendChild( this.canvas );
+						this.context = this.canvas.getContext( "2d" );
+						this.delay = 1 / this.fps;
+						this.column = 0;
+						this.turn = 1;
+						this.grid = [ ];
+						for ( var i=0; i<this.size; i++ ) {
+							this.grid[ i ] = [ ];
+						}
+						this.anim = [ ];
+						setInterval( function( ) { self.run( ) }, 1000 * this.delay );
+					},
+					run: function( ) {
+						this.think( this.delay );
+						this.draw( this.context );
+					},
+					think: function( delay ) {
+						with ( this.canvas ) {
+							width = Page.width( );
+							height = Page.height( );
+						}
+						for ( var i=this.anim.length-1; i>=0; i-- ) {
+							var cur = this.anim[ i ];
+							cur[ 2 ] += this.gravity * delay;
+							cur[ 3 ] += cur[ 2 ] * delay;
+							if ( cur[ 3 ] < this.grid[ cur[ 1 ] ].length ) {
+								this.grid[ cur[ 1 ] ].push( cur[ 0 ] );
+								this.turn = cur[ 0 ] == 1 ? 2 : 1;
+								if ( this.hasWon( cur[ 0 ], cur[ 1 ], this.grid[ cur[ 1 ] ].length - 1 ) ) {
+									alert( ( cur[ 0 ] == 1 ? this.team_a : this.team_b ) + " has won!" );
+									for ( var j=0; j<this.size; j++ ) {
+										this.grid[ j ] = [ ];
+									}
+									this.anim = [ ];
+									return;
+								}
+								this.anim.pop( );
+							}
+						}
+					},
+					draw: function( ctx ) {
+						var g = this.gridSize( );
+						var gx = ( Page.width( ) - g ) / 2, gy = ( Page.height( ) - g ) / 2;
+						for ( var i=0; i<=this.size; i++ ) {
+							with ( ctx ) {
+								beginPath( );
+								moveTo( gx + g * i / this.size, gy );
+								lineTo( gx + g * i / this.size, gy + g );
+								moveTo( gx, gy + g * i / this.size );
+								lineTo( gx + g, gy + g * i / this.size );
+								stroke( );
+							}
+						}
+						for ( var i=0; i<this.size; i++ ) {
+							for ( j=0; j<this.grid[ i ].length; j++ ) {
+								this.drawCounter( ctx, i, j, this.grid[ i ][ j ] );
+							}
+						}
+						for ( var i=0; i<this.anim.length; i++ ) {
+							this.drawCounter( ctx, this.anim[ i ][ 1 ], this.anim[ i ][ 3 ], this.anim[ i ][ 0 ] );
+						}
+						if ( this.turn ) {
+							var col = Math.clamp( this.toWorld( Mouse.left( ), 0 )[ 0 ] - 0.5, 0, this.size - 1 );
+							this.drawCounter( ctx, col, this.size, this.turn );
+							this.column = Math.round( col );
+						}
+					},
+					click: function( ) {
+						if ( !this.turn ) return;
+						if ( this.grid[ this.column ].length >= this.size ) return;
+						this.anim.push( [ this.turn, this.column, 0, this.size ] );
+						this.turn = 0;
+					}
+				}
+				Util.event( function( ) { Connect.init( Connect ) } );
+				Util.event( "mousedown", function( ) { Connect.click( ) } );
+			} )( );
+		</script>
+		<style type="text/css">
+			#game {
+				position: absolute;
+				top: 0px;
+				left: 0px;
+			}
+		</style>
+	</head>
+	<body>
+		<div id="game"></div>
+	</body>
+</html>

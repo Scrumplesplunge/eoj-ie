@@ -1,0 +1,66 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="created" content="2017-01-04T20:07:18+00:00">
+<meta name="keywords" content="c++, shell">
+<link id="theme" rel="stylesheet" href="/themes/default.css">
+<script>
+// Take a look in /themes if you want to pick a different one.
+document.getElementById("theme").href =
+    localStorage.theme || "/themes/default.css";
+</script>
+<title>A Simple C++ Build Tool</title>
+<header id="header">
+<h1>A Simple C++ Build Tool</h1>
+<time datetime="2017-01-04T20:07:18+00:00">Wednesday 4th January 2017 at 20:07 GMT</time>
+<p>
+<a class="previous" href="/5">← Horse</a>
+<a class="next" href="/7">Defend the Earth →</a>
+<br style="clear: both">
+</p>
+</header>
+<p>For a long time, I have been arranging the code for all my C++ projects in the
+same way:</p>
+
+<pre><code>joe@thirio&gt; tree
+.
+├── bin
+│   └── foobar
+├── dep
+│   ├── foo.d
+│   └── bar.d
+├── Makefile
+├── obj
+│   ├── foo.o
+│   └── bar.o
+└── src
+    ├── foo.cc
+    └── bar.cc
+
+4 directories, 8 files
+</code></pre>
+
+<p>All the source code for the project lives under the <code>src</code> subdirectory. Each
+source file is compiled into the corresponding object file under <code>obj</code>, and any
+target executables are generated under <code>bin</code>. To allow for correct incremental
+builds, dependency information for each file is generated under <code>dep</code>. This
+layout keeps source files separate from generated files and works very well
+with git, requiring only a few lines in a <code>.gitignore</code> file to ignore all the
+generated files.</p>
+
+<p>However, the <code>Makefile</code> used to achieve this is often unwieldy and writing one
+from scratch for each project is tiresome, especially for smaller projects. To
+solve this, I have created a script which I have somewhat narcissistically
+named <code>jb</code>.</p>
+
+<p><img class="keynote" src="jb_demo.gif"></p>
+
+<p><code>jb</code>, short for <em>Joe&rsquo;s Builder</em>, is approximately 250 lines of <code>zsh</code>. When
+invoked, <code>jb</code> dynamically generates a <code>Makefile</code> by examining the contents of
+each file in the source directory. Since the makefile is procedurally generated,
+its unwieldiness is no longer an issue, and the dependency analysis that it does
+is crude but fast. It has what I consider to be &ldquo;sensible defaults&rdquo; which allow
+it to build most of my projects with <strong>no additional configuration</strong>. And, to
+top it all off, I even implemented autocompletion.</p>
+
+<p>A snapshot of the script can be downloaded <a href="jb-2017-01-04.tar.gz">here</a>.</p>

@@ -1,0 +1,144 @@
+<html>
+	<head>
+		<title>Gravity</title>
+		<script type="text/javascript" src="jlib.js"></script>
+		<script type="text/javascript">
+			var Vector = function(x,y,a){if(a){this.x=x;this.y=y}else{return new Vector(x,y,true)}};
+			Vector.prototype.Add=function(v){return Vector(this.x+v.x,this.y+v.y)};
+			Vector.prototype.Sub=function(v){return Vector(this.x-v.x,this.y-v.y)};
+			Vector.prototype.Mul=function(s){return Vector(this.x*s,this.y*s)};
+			Vector.prototype.Div=function(s){return Vector(this.x/s,this.y/s)};
+			Vector.prototype.Length=function(){return Math.sqrt(this.x*this.x+this.y*this.y)}
+			Vector.prototype.Log=function(){return this.Mul(Math.max(Math.log(this.Length()),0)/this.Length())}
+			
+			var Color=function(r,g,b,a,_){if(_){this.r=r;this.g=g;this.b=b;this.a=a}else{return new Color(r,g,b,a?a:1,true)}};
+			Color.prototype.String=function(){return "rgba("+Math.clamp(Math.round(this.r),0,255)+","+Math.clamp(Math.round(this.g),0,255)+","+Math.clamp(Math.round(this.b),0,255)+","+(""+this.a).substr(0,4)+")"};
+			Color.prototype.Add=function(c){return Color(this.r+c.r,this.g+c.g,this.b+c.b)};
+			Color.prototype.Sub=function(c){return Color(this.r-c.r,this.g-c.g,this.b-c.b)};
+			Color.prototype.Mul=function(s){return Color(this.g*s,this.g*s,this.b*s)};
+			Color.prototype.Div=function(s){return Color(this.g/s,this.g/s,this.b/s)};
+			Color.prototype.Mix=function(c){var quot=1/(this.a+c.a);return Color((this.r*this.a+c.r*c.a)*quot,(this.g*this.a+c.g*c.a)*quot,(this.b*this.a+c.b*c.a)*quot,(this.a+c.a)*0.5)};
+			
+			var Body = function( pos, mass, col, a ) {
+				if ( a ) {
+					this.pos = pos;
+					this.vel = Vector( 0, 0 );
+					this.mass = mass;
+					this.color = col;
+					this.radius = Math.pow( mass, 1/3 );
+				} else {
+					if ( !col ) col = Color( Math.random( ) * 155 + 100, Math.random( ) * 155 + 100, Math.random( ) * 155 + 100 );
+					return new Body( pos, mass, col, true );
+				}
+			}
+			
+			var cv = false, ctx = false;
+			var gravity = {
+				body: [ ],
+				rate: 50,
+				size: 100,
+				G: 5000,
+			};
+			
+			Util.event( "load", function( ) {
+				gravity.canvas = document.createElement( "canvas" );
+				document.body.appendChild( gravity.canvas );
+				gravity.canvas.style.position = "absolute";
+				gravity.canvas.style.top = gravity.canvas.style.left = "0px";
+				gravity.context = gravity.canvas.getContext( "2d" );
+				gravity.delay = 1 / gravity.rate;
+				gravity.center = Vector( Page.width( ), Page.height( ) ).Mul( 0.5 );
+				gravity.scale = Math.min( Page.width( ), Page.height( ) ) / gravity.size;
+				setInterval( gravity.Think, 1000 * gravity.delay );
+				for ( var i=0; i<0; i++ ) {
+					var tmp = Body( Vector( Math.random( ) - 0.5, Math.random( ) - 0.5 ).Mul( gravity.size * 2 ), 0.01 );
+					tmp.vel = Vector( Math.random( ) - 0.5, Math.random( ) - 0.5 ).Mul( 0.1 * 2 );
+					gravity.body.push( tmp );
+				}
+			} );
+			
+			Util.event( "mousedown", function( ) {
+				gravity._new = true;
+				gravity.body.unshift( Body( Vector( Mouse.left( ), Mouse.top( ) ).Sub( gravity.center ).Div( gravity.scale ), 0.01 ) );
+			} );
+			
+			gravity.Think = function( ) {
+				if ( Mouse.held( ) ) {
+					var last = gravity.body[ 0 ];
+					if ( gravity._new ) {
+						last.mass += 2 * gravity.delay;
+						last.radius = Math.pow( last.mass, 1/3 );
+					}
+					last.vel = Vector( Mouse.left( ), Mouse.top( ) ).Sub( gravity.center ).Div( gravity.scale ).Sub( last.pos ).Div( gravity.delay );
+				}
+				
+				for ( var i=0; i<gravity.body.length; i++ ) {
+					var self = gravity.body[ i ];
+					for ( var j=i+1; j<gravity.body.length; j++ ) {
+						var other = gravity.body[ j ];
+						var relpos = other.pos.Sub( self.pos );
+						if ( relpos.Length( ) < self.radius + other.radius ) {
+							self.color = self.color.Mul( self.mass ).Add( other.color.Mul( other.mass ) ).Div( self.mass + other.mass );
+							self.vel = self.vel.Mul( self.mass ).Add( other.vel.Mul( other.mass ) ).Div( self.mass + other.mass );
+							self.pos = self.mass > other.mass ? self.pos : other.pos;
+							self.mass += other.mass;
+							self.radius = Math.pow( self.mass, 1/3 );
+							gravity.body.splice( j, 1 );
+							if ( i == 0 ) {
+								gravity._new = false;
+							}
+							j--;
+						} else {
+							var force = gravity.G / Math.pow( Math.max( relpos.Length( ), 1 ), 3 );
+							if ( !Mouse.held( ) || i != 0 ) {
+								self.vel = self.vel.Add( relpos.Mul( force * other.mass * gravity.delay ) );
+							}
+							other.vel = other.vel.Add( relpos.Mul( -force * self.mass * gravity.delay ) );
+						}
+					}
+					self.pos = self.pos.Add( self.vel.Mul( gravity.delay ) );
+				}
+				gravity.Draw( );
+			}
+			
+			gravity.Draw = function( ) {
+				var w = Page.width( );
+				var h = Page.height( );
+				gravity.canvas.width = w;
+				gravity.canvas.height = h;
+				gravity.center = Vector( w, h ).Mul( 0.5 );
+				gravity.scale = Math.min( w, h ) / gravity.size;
+				gravity.context.clearRect( 0, 0, w, h );
+				for ( var i=0; i<gravity.body.length; i++ ) {
+					var tmp_pos = gravity.body[ i ].pos.Mul( gravity.scale ); //.Log( ).Mul( 10 );
+					var pos = tmp_pos.Add( gravity.center );
+					var size = gravity.body[ i ].radius * gravity.scale; // * 100 / tmp_pos.Length( );
+					gravity.context.fillStyle = gravity.body[ i ].color.String( );
+					gravity.context.beginPath( );
+					gravity.context.arc( pos.x, pos.y, size, 0, 2 * Math.PI, true );
+					gravity.context.fill( );
+				}
+			}
+			
+			function orbit(m1, m2, d) {
+				var r1 = m2 * d / (m1 + m2);
+				var r2 = m1 * d / (m1 + m2);
+				var omega = Math.sqrt(gravity.G * (m1 + m2) * Math.pow(d, -3));
+				var a = Body(Vector(-r1, 0), m1, Color(255, 0, 0));
+				a.vel = Vector(0, -r1 * omega);
+				var b = Body(Vector(r2, 0), m2, Color(0, 255, 0));
+				b.vel = Vector(0, r2 * omega);
+				gravity.body.push(a);
+				gravity.body.push(b);
+			}
+		</script>
+		<style type="text/css">
+			body {
+				margin: 0px;
+				padding: 0px;
+				background-color: #000000;
+			}
+		</style>
+	</head>
+	<body></body>
+</html>

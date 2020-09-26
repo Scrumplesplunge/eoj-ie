@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>Tic Tac Toe</title>
+		<script type="text/javascript" src="jlib.js"></script>
+		<script type="text/javascript">
+			( function( ) {
+				window.Game = {
+					fps: 50,
+					noughts: {
+						ghost: "rgba(255,200,200,0.5)",
+						normal: "rgb(255,200,200)",
+						win: "rgb(255,0,0)",
+						wins: 0
+					},
+					crosses: {
+						ghost: "rgba(200,200,255,0.5)",
+						normal: "rgb(200,200,255)",
+						win: "rgb(0,0,255)",
+						wins: 0
+					},
+					size: function( ) {
+						return Math.min( Page.width( ), Page.height( ) ) * 0.9;
+					},
+					toScreen: function( pos ) {
+						var g = this.size( );
+						return [
+							( 3 * Page.width( ) + g * ( 2 * pos[ 0 ] - 3 ) ) / 6,
+							( 3 * Page.height( ) + g * ( 3 - 2 * pos[ 1 ] ) ) / 6
+						];
+					},
+					toWorld: function( pos ) {
+						var g = this.size( );
+						return [
+							( ( 6 * pos[ 0 ] - 3 * Page.width( ) ) / g + 3 ) / 2,
+							( 3 - ( 6 * pos[ 1 ] - 3 * Page.height( ) ) / g ) / 2
+						];
+					},
+					init: function( self ) {
+						this.delay = 1 / this.fps;
+						this.canvas = document.createElement( "canvas" );
+						this.turn = 1;
+						with ( this.canvas ) {
+							style.position = "absolute";
+							style.top = style.left = "0px";
+							width = Page.width( );
+							height = Page.height( );
+						}
+						document.body.appendChild( this.canvas );
+						this.context = this.canvas.getContext( "2d" );
+						this.grid = [
+							[ 0, 0, 0 ],
+							[ 0, 0, 0 ],
+							[ 0, 0, 0 ]
+						];
+						setInterval( function( ) {
+							self.run( );
+						}, 1000 * this.delay );
+					},
+					run: function( ) {
+						with ( this.canvas ) {
+							width = Page.width( );
+							height = Page.height( );
+						}
+						this.think( this.delay );
+						this.draw( this.context );
+					},
+					think: function( t ) {
+						var mpos = this.toWorld( [ Mouse.left( ), Mouse.top( ) ] );
+						var x = Math.clamp( Math.floor( mpos[ 0 ] ), 0, 2 );
+						var y = Math.clamp( Math.floor( mpos[ 1 ] ), 0, 2 );
+						if ( this.grid[ x ][ y ] == 0 ) {
+							this.cx = x;
+							this.cy = y;
+						} else {
+							this.cx = this.cy = -1;
+						}
+					},
+					draw: function( ctx ) {
+						var a = this.toScreen( [ 0, 0 ] );
+						var b = this.toScreen( [ 3, 3 ] );
+						var c = [ b[ 0 ] - a[ 0 ], b[ 1 ] - a[ 1 ] ];
+						with ( ctx ) {
+							beginPath( );
+							for ( var t=0; t<1.1; t+=1/3 ) {
+								moveTo( a[ 0 ], a[ 1 ] + c[ 1 ] * t );
+								lineTo( b[ 0 ], a[ 1 ] + c[ 1 ] * t );
+								moveTo( a[ 0 ] + c[ 0 ] * t, a[ 1 ] );
+								lineTo( a[ 0 ] + c[ 0 ] * t, b[ 1 ] );
+							}
+							stroke( );
+							save( );
+							strokeStyle = "rgb(100,100,100)";
+							shadowColor = "rgba(0,0,0,0.5)";
+							shadowBlur = this.size( ) * 0.01;
+							shadowOffsetX = shadowOffsetY = this.size( ) * 0.005;
+							for ( var x=0,y=0; y<3; x==2?(x=0)+y++:x++ ) {
+								var a = this.grid[ x ][ y ];
+								var pos = this.toScreen( [ x + 0.5, y + 0.5 ] );
+								lineWidth = 0.02 * this.size( );
+								beginPath( );
+								if ( a % 2 == 1 ) {
+									strokeStyle = a == 1 ? this.noughts.normal : this.noughts.win;
+									arc( pos[ 0 ], pos[ 1 ], this.size( ) * 0.4 / 3, 0, 2 * Math.PI, true );
+								} else if ( a != 0 ) {
+									strokeStyle = a == 2 ? this.crosses.normal : this.crosses.win;
+									var offset = this.size( ) * 0.4 / 3;
+									moveTo( pos[ 0 ] - offset, pos[ 1 ] - offset );
+									lineTo( pos[ 0 ] + offset, pos[ 1 ] + offset );
+									moveTo( pos[ 0 ] - offset, pos[ 1 ] + offset );
+									lineTo( pos[ 0 ] + offset, pos[ 1 ] - offset );
+								}
+								stroke( );
+							}
+							if ( this.cx > -1 && this.cy > -1 ) {
+								var pos = this.toScreen( [ this.cx + 0.5, this.cy + 0.5 ] );
+								beginPath( );
+								strokeStyle = this.turn == 1 ? this.noughts.ghost : this.crosses.ghost;
+								if ( this.turn == 1 ) {
+									arc( pos[ 0 ], pos[ 1 ], this.size( ) * 0.4 / 3, 0, 2 * Math.PI, true );
+								} else if ( this.turn == 2 ) {
+									var offset = this.size( ) * 0.4 / 3;
+									moveTo( pos[ 0 ] - offset, pos[ 1 ] - offset );
+									lineTo( pos[ 0 ] + offset, pos[ 1 ] + offset );
+									moveTo( pos[ 0 ] - offset, pos[ 1 ] + offset );
+									lineTo( pos[ 0 ] + offset, pos[ 1 ] - offset );
+								}
+								stroke( );
+							}
+							restore( );
+							if ( this.turn == 0 ) {
+								textAlign = "center";
+								font = "20pt Tahoma";
+								fillText( "Noughts " + this.noughts.wins + ", Crosses " + this.crosses.wins, Page.width( ) / 2, Page.height( ) / 2 );
+							}
+						}
+					},
+					hasWon: function( type, x, y, a, b ) {
+						for ( var i=0; i<3; i++ ) {
+							if ( this.grid[ i ][ 0 ] == type && this.grid[ i ][ 1 ] == type && this.grid[ i ][ 2 ] == type ) {
+								this.grid[ i ] = [ type + 2, type + 2, type + 2 ];
+								return true;
+							}
+						}
+						for ( var i=0; i<3; i++ ) {
+							if ( this.grid[ 0 ][ i ] == type && this.grid[ 1 ][ i ] == type && this.grid[ 2 ][ i ] == type ) {
+								this.grid[ 0 ][ i ] = this.grid[ 1 ][ i ] = this.grid[ 2 ][ i ] = type + 2;
+								return true;
+							}
+						}
+						if ( this.grid[ 1 ][ 1 ] == type ) {
+							if ( this.grid[ 0 ][ 0 ] == type && this.grid[ 2 ][ 2 ] == type ) {
+								this.grid[ 0 ][ 0 ] = this.grid[ 1 ][ 1 ] = this.grid[ 2 ][ 2 ] = type + 2;
+								return true;
+							}
+							if ( this.grid[ 0 ][ 2 ] == type && this.grid[ 2 ][ 0 ] == type ) {
+								this.grid[ 0 ][ 2 ] = this.grid[ 1 ][ 1 ] = this.grid[ 2 ][ 0 ] = type + 2;
+								return true;
+							}
+						}
+						return false;
+					},
+					full: function( ) {
+						var sum = 0;
+						for ( var x=0, y=0; y<3; x==2?(x=0)+y++:x++ ) {
+							if ( this.grid[ x ][ y ] > 0 ) sum++;
+						}
+						if ( sum == 9 ) {
+							for ( var x=0, y=0; y<3; x==2?(x=0)+y++:x++ ) this.grid[ x ][ y ] += 2;
+							return true;
+						}
+						return false;
+					}
+				}
+				
+				Util.event( "load", function( ) {
+					Game.init( Game );
+				} );
+				
+				Util.event( "mousedown", function( ) {
+					if ( Game.turn > 0 && Game.cx > -1 && Game.cy > -1 ) {
+						Game.grid[ Game.cx ][ Game.cy ] = Game.turn;
+						if ( Game.hasWon( Game.turn, Game.cx, Game.cy ) ) {
+							Game.turn == 1 ? Game.noughts.wins++ : Game.crosses.wins++;
+							setTimeout( function( ) {
+								Game.grid = [
+									[ 0, 0, 0 ],
+									[ 0, 0, 0 ],
+									[ 0, 0, 0 ]
+								];
+								Game.turn = [ 1, 2 ].random( );
+							}, 1000 );
+							Game.turn = 0;
+						} else if ( Game.full( ) ) {
+							setTimeout( function( ) {
+								Game.grid = [
+									[ 0, 0, 0 ],
+									[ 0, 0, 0 ],
+									[ 0, 0, 0 ]
+								];
+								Game.turn = [ 1, 2 ].random( );
+							}, 1000 );
+							Game.turn = 0;
+						} else {
+							Game.turn = Game.turn == 1 ? 2 : 1;
+							Game.cx = Game.cy = -1;
+						}
+					}
+				} );
+			} )( );
+		</script>
+	</head>
+	<body>
+		
+	</body>
+</html>

@@ -1,0 +1,10 @@
+{
+  "title": "Defend the Earth",
+  "description": "A 2D space shooter. Defend the Earth against waves of alien invaders.",
+  "created": "2017-04-28T21:28:17Z",
+  "source": "https://github.com/Scrumplesplunge/defendtheearth",
+  "ludum-dare": {
+    "event": "Ludum Dare 38",
+    "theme": "A Small World"
+  }
+}

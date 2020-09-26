@@ -1,0 +1,65 @@
+<html>
+  <head>
+    <title>Lisp</title>
+    <script src="location.js"></script>
+    <script src="node.js"></script>
+    <script src="parser.js"></script>
+    <script src="environment.js"></script>
+    <script src="runtime.js"></script>
+    <script src="prelude.js"></script>
+    <style>
+      #input {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 50%;
+        height: 100%;
+      }
+      #output {
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 50%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <textarea id="input"># Example: Compute Fibonacci numbers
+(define otherwise true)  # Convenience constant.
+(function fib (n)
+  (cond
+    ((= n 0) 0)  # fib(0) = 0
+    ((= n 1) 1)  # fib(1) = 1
+    # fib(n) = fib(n - 1) + fib(n - 2)
+    (otherwise (+ (fib (- n 1)) (fib (- n 2))))
+  )
+)
+(define n 10)
+(write "The " n "th Fibonacci number is " (fib 10))
+</textarea>
+    <textarea id="output"></textarea>
+    <script>
+      var output = document.getElementById("output");
+      var input = document.getElementById("input");
+
+      var timer = 0;
+      input.addEventListener("keydown", function() {
+        clearTimeout(timer);
+        timer = setTimeout(run, 500);
+      });
+
+      function run() {
+        try {
+          var runtime = new Runtime();
+          addPrelude(runtime);
+          runtime.run(input.value);
+          output.value = runtime.output;
+        } catch (error) {
+          output.value = error.message;
+        }
+      }
+      run();
+    </script>
+  </body>
+</html>

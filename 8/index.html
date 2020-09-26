@@ -1,0 +1,39 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="created" content="2017-05-30T22:37:52+00:00">
+<meta name="keywords" content="hacks, javascript">
+<link id="theme" rel="stylesheet" href="/themes/default.css">
+<script>
+// Take a look in /themes if you want to pick a different one.
+document.getElementById("theme").href =
+    localStorage.theme || "/themes/default.css";
+</script>
+<title>Lisp!</title>
+<header id="header">
+<h1>Lisp!</h1>
+<time datetime="2017-05-30T22:37:52+00:00">Tuesday 30th May 2017 at 23:37 IST</time>
+<p>
+<a class="previous" href="/7">← Defend the Earth</a>
+<a class="next" href="/9">Quest →</a>
+<br style="clear: both">
+</p>
+</header>
+<p>Recently I started to get interested in lisp. I have looked at it before and
+appreciated its simplicity, but this time I decided to try and implement my own
+little dialect. The result is <a href="demo.html">here</a> and can execute a few simple
+operations.</p>
+
+<ul>
+<li>Quoting, e.g. <code>'(+ 1 2)</code> evaluates to <code>(+ 1 2)</code> rather than <code>3</code>.</li>
+<li>The <code>eval</code> form, e.g. <code>(eval '(+ 1 2))</code> evaluates to <code>3</code>.</li>
+<li>The n-ary operators <code>+</code>, <code>-</code>, <code>*</code>, and <code>/</code>.</li>
+<li>The <code>lambda</code> form, e.g. <code>(lambda (x) (* x x))</code>.</li>
+<li>The <code>macro</code> form, which is similar to <code>lambda</code> except that its arguments are
+passed unevaluated.</li>
+<li>The <code>with</code> form, which works as shown in the example.</li>
+</ul>
+
+
+<p>Be warned that the code for the interpreter is not pretty. Probably best not to
+try to read it.</p>

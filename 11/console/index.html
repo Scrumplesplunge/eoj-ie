@@ -1,0 +1,187 @@
+<HTA:APPLICATION ID="xxx"
+ APPLICATIONNAME="xxx"
+ BORDERSTYLE="normal"
+ CAPTION="yes"
+ CONTEXTMENU="yes"
+ ICON="images/myworkspace.ico"
+ INNERBORDER="no"
+ MAXIMIZEBUTTON="yes"
+ MINIMIZEBUTTON="yes"
+ NAVIGABLE="no"
+ SCROLL="no"
+ SCROLLFLAT="no"
+ SELECTION="yes"
+ SHOWINTASKBAR="yes"
+ SINGLEINSTANCE="yes"
+ SYSMENU="yes"
+ VERSION="1.0" />
+<html>
+	<head>
+		<title>Javascript Console</title>
+		<script type="text/javascript" src="slang.js"></script>
+		<script type="text/javascript" src="shy.js"></script>
+		<script type="text/javascript">
+			var output;
+			var input;
+			function RunCommand( code ) {
+				var hlcode = shy.FindSyntax( code , shy.Language[ "javascript" ] , 0 );
+				if ( console.Echo ) {
+					slang.Element.Append( output , hlcode + "<br \/>" );
+				}
+				if ( code.substr( 0 , 4 ) == "var " ) {
+					code = "window." + code.substr( 4 );
+				}
+				if ( code.substr( 0 , 9 ) == "function " ) {
+					var fname = code.match( /\w+(?=\s*\()/ )[ 0 ];
+					code = "window." + fname + "=function" + code.substr( 9 + fname.length );
+				}
+				if ( console.ShowReturn & console.Echo & code.substr( 0 , 7 ) != "console" ) {
+					try {
+						slang.Element.Append( output , "rgb(125,175,200)" , slang.Util.Dump( eval( code ) , "&nbsp;&nbsp;" , true ) + "<br \/>" );
+					} catch( err ) {
+						slang.Element.Append( output , "rgb(255,50,50)" , slang.Util.Dump( err , "&nbsp;&nbsp;" , true ) + "<br \/>" );
+					}
+				} else {
+					try {
+						eval( code );
+					} catch( err ) {
+						slang.Element.Append( output , "rgb(255,50,50)" , slang.Util.Dump( err , "&nbsp;&nbsp;" , true ) + "<br \/>" );
+					}
+				}
+				input.value = "";
+				output.scrollTop = 999999999;
+			}
+			slang.Hook.Add( "Initialize" , "Setup" , function( ) {
+				input = slang.Element.Get( "Input" );
+				output = slang.Element.Get( "MainBox" );
+				slang.Event.Hook( input , "keyup" , function( ) {
+					if ( window.event.keyCode == 13 & input.value.replace( " " , "" ).length > 0 ) {
+						RunCommand( input.value );
+					}
+				} );
+				
+				input.focus( );
+				
+				auto = slang.Element.Get( "Auto" ).innerHTML.split( ";" );
+				for ( l in auto ) {
+					auto[ l ] = auto[ l ].replace( /^\s+|\s$/g , "" );
+					if ( auto[ l ].length > 0 ) {
+						RunCommand( auto[ l ] + ";" );
+					}
+				}
+				setInterval( function( ) {
+					output.style.height = ( slang.Page.Height( ) - 21 ) + "px";
+					output.style.width = slang.Page.Width( ) + "px";
+				} , 100 );
+			} );
+			window.resizeTo( 520 , 450 );
+
+			var console = {
+				ShowReturn: true,
+				Echo: true,
+				Clear: function( ) {
+					slang.Element.Clear( output );
+				},
+				Print: function( col , txt ) {
+					if ( typeof txt == "undefined" ) {
+						txt = col;
+						col = ( ( output.style.color ) ? output.style.color : "rgb(0,0,0)" );
+					}
+					slang.Element.Append( output , col , txt + "<br />" );
+					output.scrollTop = 999999999;
+				},
+				Foreground: function( col ) {
+					output.style.color = col;
+					input.style.color = col;
+				},
+				Background: function( col ) {
+					output.style.backgroundColor = col;
+					input.style.backgroundColor = col;
+				},
+				Help: function( lib , pre ) {
+					pre = ( typeof pre == "undefined" ) ? "" : pre;
+					for ( var child in lib ) {
+						if ( slang.Array.IsArray( lib[ child ] ) ) {
+							slang.Element.Append( output , "array: " + shy.FindSyntax( pre + child + " [ " + lib[ child ].length + " ]" , shy.Language[ "javascript" ] , 0 ) + "<br \/>" );
+						} else if ( typeof lib[ child ] == "object" ) {
+							console.Help( lib[ child ] , pre + child + "." );
+						} else {
+							var data = shy.FindSyntax( ( ( typeof lib[ child ] == "function" ) ? pre + child + ( "" + lib[ child ] ).split( "{" )[ 0 ].substr( 8 ) : pre + child ) , shy.Language[ "javascript" ] , 0 );
+							slang.Element.Append( output , typeof lib[ child ] + ": " + data + "<br \/>" );
+						}
+					}
+				},
+				Title: function( val ) {
+					if ( typeof val != "undefined" ) {
+						document.title = val;
+					}
+					return document.title;
+				},
+				Run: function( str ) {
+					var dat = str.split( /\\|\// );
+					var ext = dat[ dat.length - 1 ].match( /\.\w+$/ )[ 0 ];
+					if ( ext == ".exe" ) {
+						console.Print( "-- Executing program '" + dat[ dat.length - 1 ] + "'.." );
+						try {
+							var a = new ActiveXObject( "WScript.Shell" );
+							a.run( str );
+							console.Print( "-- Program executed successfully." );
+						} catch( err ) {
+							console.Print( "rgb(255,50,50)" , slang.Util.Dump( err , "&nbsp;&nbsp;" , true ) + "<br \/>" );
+						}
+					} else {
+						console.Print( "-- Executing script '" + dat[ dat.length - 1 ] + "'.." );
+						try {
+							var a = new ActiveXObject( "Scripting.FileSystemObject" );
+							var sf = a.OpenTextFile( str , 1 , false , 0 );
+							var script = sf.ReadAll( );
+							sf.Close( );
+							eval( script );
+							console.Print( "-- Script executed successfully." );
+						} catch( err ) {
+							console.Print( "rgb(255,50,50)" , slang.Util.Dump( err , "&nbsp;&nbsp;" , true ) + "<br \/>" );
+						}
+					}
+				},
+				Exit: function( ) {
+					window.close( );
+				}
+			};
+		</script>
+		<style type="text/css">
+			body {
+				margin: 0px;
+			}
+			#MainBox {
+				padding: 5px;
+				position: absolute;
+				font-family: Courier New;
+				font-size: 11pt;
+				top: 0px;
+				left: 0px;
+				width: 100%;
+				height: 391px;
+				overflow: auto;
+			}
+			#Input {
+				position: absolute;
+				font-family: Courier New;
+				font-size: 11pt;
+				bottom: 0px;
+				left: 0px;
+				width: 100%;
+				height: 21px;
+				border: 1px solid rgb(200,200,200);
+			}
+			#Auto {
+				display: none;
+			}
+		</style>
+	</head>
+	<body>
+		<div id="Auto">
+		</div>
+		<div id="MainBox">Javascript Interpreting Console<br />Version 1.0 By Joe Fowler<br /><br /></div>
+		<input id="Input" type="text" />
+	</body>
+</html>
