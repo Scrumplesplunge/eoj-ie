@@ -17,44 +17,7 @@ nav > a {
 }
 nav > a:hover { opacity: 1; }
 </style>
-<canvas id="blobs"></canvas>
 <nav>
 <a title="Joe's latest ramblings" href="/latest">/latest</a>
 <a title="JavaScript games made by Joe" href="/games">/games</a>
 </nav>
-<script>
-// Pick some random colours for the page.
-var hsl = (h, s, l) => "hsl(" + h + "," + 100 * s + "%," + 100 * l + "%)";
-var x = (Math.sign(Math.random() - 0.5) * Math.pow(Math.random(), 1/4) + 1) / 2;
-document.body.style.backgroundColor = hsl(0, 0, x);
-document.body.style.color = hsl(360 * Math.random(), 1, 1 - x);
-// Set up the banner text.
-function banner(text) {
-  var canvas = document.createElement("canvas");
-  var context = canvas.getContext("2d");
-  // Compute canvas dimensions based on how large the text will be.
-  var height = 20;
-  context.font = height + "px sans-serif";
-  var width = context.measureText(text).width;
-  var padding = height;
-  canvas.width = padding + width;
-  canvas.height = padding + height;
-  // Adjusting the canvas size resets the context because reasons.
-  context.textBaseline = "middle";
-  context.textAlign = "center";
-  context.font = height + "px sans-serif";
-  // Compute the real bounding box of the text from the non-transparent pixels.
-  context.fillText(text, 0.5 * canvas.width, 0.5 * canvas.height);
-  var pixels = context.getImageData(0, 0, canvas.width, canvas.height);
-  var bounds = {
-    min: {x: Infinity, y: Infinity},
-    max: {x: -Infinity, y: -Infinity},
-  };
-  for (var y = 0, yMax = canvas.height; y < yMax; y++) {
-    for (var x = 0, xMax = canvas.width; x < xMax; x++) {
-      
-    }
-  }
-}
-banner("eoj.ie");
-</script>
