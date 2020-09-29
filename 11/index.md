@@ -5,18 +5,18 @@ them. Check them out at your peril :)
 
 The ones I think are most interesting and/or fun:
 
-  * [2D Combat AI](ai)
+  * [2D Combat AI](/games/ai)
   * [Custom 3D Rendering](3d)
   * [Christmas Raytracer](christmas)
 
 Games:
 
-  * [Connect 4](connect4)
+  * [Connect 4](/games/connect4)
   * Noughts and Crosses:
-    [Pretty Multiplayer](noughts-and-crosses/two-player.html),
-    [Ugly Singleplayer](noughts-and-crosses/one-player.html)
-  * [Gravity](gravity)
-  * [Physics Sandbox](physics)
+    [Pretty Multiplayer](/games/noughts-and-crosses/two-player.html),
+    [Ugly Singleplayer](/games/noughts-and-crosses/one-player.html)
+  * [Gravity](/games/gravity)
+  * [Physics Sandbox](/games/physics)
 
 Demos:
 
