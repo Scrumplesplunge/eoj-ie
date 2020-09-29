@@ -95,7 +95,7 @@ for (let i = 0; i < 20; i++) {
 }
 
 let gravity = new Vector(0, 10);
-screen.orientation.lock("any");
+screen.orientation.lock("natural");
 addEventListener("devicemotion", event => {
   const acceleration = event.accelerationIncludingGravity;
   if (acceleration.x === null && acceleration.y === null) return;
