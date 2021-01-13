@@ -86,6 +86,7 @@ function updateDog() {
     let nearestTreatDistance = Infinity;
     for (let i = 0; i < treats.length; i++) {
       const treat = treats[i];
+      if (treat.y != HEIGHT - 2) continue;  // Skip treats which are in the air.
       const distance = Math.abs(treat.x - x);
       if (distance < nearestTreatDistance) {
         nearestTreatDistance = distance;
