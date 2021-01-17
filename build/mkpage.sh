@@ -17,12 +17,12 @@ KEYWORDS="$(jq -r '.keywords | join(", ")' "$JSON")"
 # Optionally generate "previous" and "next" links.
 if [[ $INDEX -gt 1 ]]; then
   LINK_TITLE="$(jq -r '.title' "$((INDEX - 1))/info.json")"
-  PREVIOUS="<a class=previous href=\"/$((INDEX - 1))\">← $LINK_TITLE</a>"
+  PREVIOUS="<a class=previous title=\"$LINK_TITLE\" class=previous href=\"/$((INDEX - 1))\">← Previous</a>"
 fi
 
 if [[ -d $((INDEX + 1)) ]]; then
   LINK_TITLE="$(jq -r '.title' "$((INDEX + 1))/info.json")"
-  NEXT="<a class=next href=\"/$((INDEX + 1))\">$LINK_TITLE →</a>"
+  NEXT="<a class=next title=\"$LINK_TITLE\" href=\"/$((INDEX + 1))\">Next →</a>"
 fi
 
 pretty_date() {
