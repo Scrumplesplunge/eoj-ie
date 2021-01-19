@@ -59,5 +59,5 @@ $NEXT
 <br style="clear: both">
 </p>
 </header>
-$(markdown -S "$MD")
+$(markdown -f footnote -S "$MD")
 EOF
