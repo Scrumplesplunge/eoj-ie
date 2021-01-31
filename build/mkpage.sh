@@ -51,7 +51,7 @@ document.getElementById("theme").href =
 </script>
 <title>$TITLE</title>
 <header id=header>
-<h1>$TITLE</h1>
+<h1><a href=/$INDEX>$TITLE</a></h1>
 <time datetime="$DATE">$(pretty_date "$DATE")</time>
 <p>
 $PREVIOUS
