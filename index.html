@@ -2,6 +2,14 @@
 <meta charset="utf-8">
 <title>eoj.ie</title>
 <style>
+canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
 nav {
   padding: 0.5em;
   position: absolute;
@@ -17,6 +25,156 @@ nav > a {
 }
 nav > a:hover { opacity: 1; }
 </style>
+<canvas></canvas>
+<script>
+  const banner = 'eoj.ie';
+  const canvas = document.querySelector('canvas');
+  const context = canvas.getContext('2d');
+
+  const ratio = 0.5 * devicePixelRatio;
+
+  const numParticles = 1000;
+  const particles = [];
+  let size = {width: 1, height: 1};
+
+  function init() {
+    // Render the banner in a box that is just the right size.
+    context.font = 'bold 12pt sans-serif';
+    context.textBaseline = 'middle';
+    context.textAlign = 'center';
+    const s = context.measureText(banner);
+    const w = 10 * (s.actualBoundingBoxLeft + s.actualBoundingBoxRight);
+    const h = 10 * (s.actualBoundingBoxAscent + s.actualBoundingBoxDescent);
+    size.width = w;
+    size.height = h;
+    canvas.width = w;
+    canvas.height = h;
+    context.font = 'bold 12pt sans-serif';
+    context.textBaseline = 'middle';
+    context.textAlign = 'center';
+    context.scale(10, 10);
+    context.translate(s.actualBoundingBoxLeft, s.actualBoundingBoxAscent);
+    context.fillText(banner, 0, 0);
+    const image = context.getImageData(0, 0, canvas.width, canvas.height);
+
+    let iterations = 0;
+    const f = () =>
+        Math.floor(256 * Math.random()).toString(16).padStart(2, '0');
+    const g = () => `#${f()}${f()}${f()}`;
+    while (particles.length < numParticles) {
+      // We will normally keep going until we have the desired number of points,
+      // but to avoid burning too much CPU when the font is very thin, we'll cap
+      // the number of iterations.
+      if (++iterations > 10 * numParticles) break;
+      const x = Math.random() * image.width;
+      const y = Math.random() * image.height;
+      const index = Math.floor(y) * image.width + Math.floor(x);
+      // If the pixel is not transparent, this point is inside the text and so
+      // we can make a particle at this position.
+      if (!image.data[4 * index + 3]) continue;
+      const originX = x, originY = y;
+      const dx = 0, dy = 0;
+      const color = g();
+      const radius = 2 + 2 * Math.random();
+      particles.push({originX, originY, x, y, dx, dy, color, radius});
+    }
+  }
+
+  function resize() {
+    canvas.width = ratio * innerWidth;
+    canvas.height = ratio * innerHeight;
+  }
+
+  const mouse = {x: -1e10, y: 0, down: false};
+  const defaultDrag = 0.01, clickDrag = 0.5;
+  const defaultMouseForce = 5000, clickMouseForce = 50000;
+  const defaultMouseTorque = 5000, clickMouseTorque = 50000;
+  const originForce = 10;
+
+  function getScale() {
+    return 0.6 * Math.min(canvas.width / size.width,
+                          canvas.height / size.height);
+  }
+
+  function setMouse(x, y) {
+    const w = canvas.width, h = canvas.height;
+    const s = getScale();
+    mouse.x = (x * ratio - 0.5 * w) / s + 0.5 * size.width;
+    mouse.y = (y * ratio - 0.5 * h) / s + 0.5 * size.height;
+  }
+
+  function handleTouch(event) {
+    const touch = event.touches[0];
+    if (touch) setMouse(touch.clientX, touch.clientY);
+  }
+
+  addEventListener('mousedown', event => mouse.down = true);
+  addEventListener('mouseup', event => mouse.down = false);
+  addEventListener('mousemove', event => setMouse(event.x, event.y));
+
+  addEventListener('touchstart', event => {
+    handleTouch(event);
+    mouse.down = true;
+  });
+  addEventListener('touchend', event => mouse.down = false);
+  addEventListener('touchmove', handleTouch);
+
+  function update(dt) {
+    for (const particle of particles) {
+      let fx = 0, fy = 0;
+      // Apply an elastic force towards the particle origin.
+      fx += originForce * (particle.originX - particle.x);
+      fy += originForce * (particle.originY - particle.y);
+      // Apply a repulsive force from the mouse.
+      const mx = mouse.x - particle.x;
+      const my = mouse.y - particle.y;
+      const ml = Math.max(1, (mx ** 2 + my ** 2) ** 0.5);
+      const mouseForce = mouse.down ? clickMouseForce : defaultMouseForce;
+      fx += mouseForce * mx / ml ** 2;
+      fy += mouseForce * my / ml ** 2;
+      // Apply a rotational force around the mouse.
+      const mouseTorque = mouse.down ? clickMouseTorque : defaultMouseTorque;
+      fx += -mouseTorque * my / ml ** 2;
+      fy += mouseTorque * mx / ml ** 2;
+      // Update the particle.
+      const drag = mouse.down ? clickDrag : defaultDrag;
+      particle.dx = Math.pow(drag, dt) * particle.dx + dt * fx;
+      particle.dy = Math.pow(drag, dt) * particle.dy + dt * fy;
+      particle.x += dt * particle.dx;
+      particle.y += dt * particle.dy;
+    }
+  }
+
+  function draw() {
+    context.setTransform(1, 0, 0, 1, 0, 0);
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    const scale = 0.6 * Math.min(canvas.width / size.width,
+                                 canvas.height / size.height);
+    context.translate(0.5 * canvas.width, 0.5 * canvas.height);
+    context.scale(scale, scale);
+    context.translate(-0.5 * size.width, -0.5 * size.height);
+    for (const particle of particles) {
+      context.fillStyle = particle.color;
+      context.beginPath();
+      context.arc(particle.x, particle.y, particle.radius, 0, 2 * Math.PI);
+      context.fill();
+    }
+    context.fillStyle = 'rgba(0, 0, 0, 0.2)';
+    context.beginPath();
+    context.arc(mouse.x, mouse.y, mouse.down ? 10 : 5, 0, 2 * Math.PI);
+    context.fill();
+  }
+
+  init();
+  resize();
+  addEventListener('resize', resize);
+  setInterval(() => {
+    for (let i = 0; i < 5; i++) {
+      update(0.02 / 5);
+    }
+    draw();
+  }, 20);
+</script>
 <nav>
 <a title="Joe's latest ramblings" href="/latest">/latest</a>
 <a title="JavaScript games made by Joe" href="/games">/games</a>
