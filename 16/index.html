@@ -1,0 +1,72 @@
+<!doctype html>
+<meta charset=utf-8>
+<meta name=viewport content="width=device-width, initial-scale=1">
+<meta name=created content="2022-10-28T20:48:53Z">
+<meta name=keywords content="javascript, game, coding">
+<link id=theme rel=stylesheet href=/themes/default.css>
+<script>
+// Take a look in /themes if you want to pick a different one.
+document.getElementById("theme").href =
+    localStorage.theme || "/themes/default.css";
+</script>
+<title>Space Race</title>
+<header id=header>
+<h1><a href=/16>Space Race</a></h1>
+<time datetime="2022-10-28T20:48:53Z">Friday 28th October 2022 at 21:48 IST</time>
+<p>
+<a class=previous title="What is a native binary?" class=previous href="/15">← Previous</a>
+
+<br style="clear: both">
+</p>
+</header>
+<p><a href="/games/space-race">Space Race</a> is a small coding game. The objective is to
+implement a flight controller program which will allow a rocket to take off,
+orbit a planet, and then land again on the launchpad.</p>
+
+<h2>Getting Started</h2>
+
+<p>To play the game, you will need to create a <code>solution.js</code> file containing
+a flight controller program, and then host it on a web server. By default, the
+simulator will attempt to load the solution from <code>localhost:8000/solution.js</code>.
+One quick way to get up and running is to use <code>python3 -m http.server</code> to serve
+your solution.</p>
+
+<p>If you want to load a solution from a different location, you can override the
+loading path by setting <code>localStorage.path</code> via the developer tools in your
+browser.</p>
+
+<h2>User Interface</h2>
+
+<ul>
+<li>Scrolling the mouse wheel will zoom the camera in or out.</li>
+<li><code>&lt;</code> and <code>&gt;</code> control time warp, like in Kerbal Space Program.</li>
+<li><code>?</code> toggles the debug overlay, which will show you some of the important
+effects which are normally not visible, such as satellite pings or air
+resistance.</li>
+</ul>
+
+
+<h2>API</h2>
+
+<p>To control the rocket, you will need to tell it what to do. The game will give
+you information about your rocket so that you can decide what to do. All
+communication between your flight controller and the game happens
+asynchronously: the rocket will not pause while you calculate a strategy, it
+will keep flying, so you need to act fast!</p>
+
+<p>Communication in both directions is via the <a href="https://developer.mozilla.org/en-US/docs/Web/API/Worker/postMessage:"><code>postMessage()</code></a> API.
+There are various kinds of message that can be sent or received. The full
+interface is described in <a href="/games/space-race/api.ts"><code>api.ts</code></a>. In addition to
+the raw API, there are some convenience definitions available for the flight
+controller to use: see <a href="/games/space-race/constants.ts"><code>constants.ts</code></a> and
+<a href="/games/space-race/math.ts"><code>math.ts</code></a>.</p>
+
+<h2>Scoring?</h2>
+
+<p>There are multiple criteria by which you can grade your flight controller:</p>
+
+<ul>
+<li>How quick was it?</li>
+<li>How much fuel did it use?</li>
+<li>How smooth does the flight look?</li>
+</ul>
