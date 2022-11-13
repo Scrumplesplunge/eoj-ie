@@ -12,7 +12,8 @@ your solution.
 
 If you want to load a solution from a different location, you can override the
 loading path by setting `localStorage.path` via the developer tools in your
-browser.
+browser. For example, try pointing it at the [template
+solution](/games/space-race/solution.js) to begin with.
 
 ## User Interface
 
