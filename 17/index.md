@@ -352,6 +352,7 @@ a visualisation of the outputs from GJK and EPA:
 I don't minify the code for my site, so you can simply view the source for this
 page to see the commented code.
 
+[axis]: https://en.wikipedia.org/w/index.php?title=Separating_axis_theorem
 [minkowski]: https://en.wikipedia.org/wiki/Minkowski_addition
 [^convex]: Convexity is a prerequisite for a lot of efficient collision
     algorithms and we can handle many concave shapes by decomposing them into
