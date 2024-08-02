@@ -1,0 +1,387 @@
+<!doctype html>
+<meta charset=utf-8>
+<meta name=viewport content="width=device-width, initial-scale=1">
+<meta name=created content="2024-07-23T20:29:35Z">
+<meta name=keywords content="javascript, coding">
+<link id=theme rel=stylesheet href=/themes/default.css>
+<script>
+// Take a look in /themes if you want to pick a different one.
+document.getElementById("theme").href =
+    localStorage.theme || "/themes/default.css";
+</script>
+<title>Gilbert-Johnson-Keerth (GJK) and the Expanding Polytope Algorithm (EPA)</title>
+<header id=header>
+<h1><a href=/17>Gilbert-Johnson-Keerth (GJK) and the Expanding Polytope Algorithm (EPA)</a></h1>
+<time datetime="2024-07-23T20:29:35Z">Tuesday 23rd July 2024 at 21:29 IST</time>
+<p>
+<a class=previous title="Space Race" class=previous href="/16">← Previous</a>
+
+<br style="clear: both">
+</p>
+</header>
+<p>I&rsquo;m currently implementing a game engine as a hobby project and I am now
+implementing GJK for the first time after learning about it at university over
+a decade ago. To wrap my head around it, I decided to implement it in 2D first
+and share it here.</p>
+
+<p>The problem we want to solve is to detect whether two convex<sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup> shapes are
+intersecting and, if they are, identify a contact point and a separation vector
+which we can use for resolving the collision. This problem is equivalent to
+checking whether the <a href="https://en.wikipedia.org/wiki/Minkowski_addition">Minkowski Difference</a> of the two shapes
+contains the origin point. The separation vector is equal to the vector from the
+origin to the closest point on the surface of the Minkowski difference, and the
+contact point can be found by reconstructing the points on the two shapes which
+generated that point on the surface of the Minkowski difference.</p>
+
+<p>GJK handles collision detection by searching for a subset of the Minkowski
+Difference which contains the origin. More specifically, each subset it
+considers is a <em>simplex</em> consisting of 1-3 vertices which form a point, a line,
+or a triangle within the Minkowski Difference. In 3D, we would have 1-4 vertices
+and additionally consider tetrahedrons. The algorithm either terminates having
+found a [separating axis][axis] signifying that there is no intersection, or by
+finding a simplex of 3 points that contain the origin.</p>
+
+<p>However, that&rsquo;s not everything we need. We still don&rsquo;t know the contact point or
+the separation vector, all we have is some simplex inside the Minkowski
+difference. To find the separation vector, we have to use a second algorithm
+called the <em>Expanding Polytope Algorithm</em>. This algorithm iteratively expands
+GJK&rsquo;s final simplex by searching outwards from the face which is closest to the
+origin until it reaches the surface of the Minkowski difference and can&rsquo;t search
+any further.</p>
+
+<p>Without further ado, here&rsquo;s the demo:</p>
+
+<script>
+  (() => {
+    // Functions for vector arithmetic.
+    function vec(x, y) { return {x, y} }
+    function dot(a, b) { return a.x * b.x + a.y * b.y }
+    function neg(v) { return {x: -v.x, y: -v.y} }
+    function add(a, b) { return {x: a.x + b.x, y: a.y + b.y} }
+    function sub(a, b) { return {x: a.x - b.x, y: a.y - b.y} }
+    function mul(v, s) { return {x: v.x * s, y: v.y * s} }
+    function rot90(v) { return {x: -v.y, y: v.x} }
+    function norm(v) { return mul(v, 1 / Math.sqrt(dot(v, v))) }
+
+    // Generate a regular polygon with the given centre and rotation.
+    function regularPolygon(numVertices, center, angle) {
+      const result = [];
+      const stride = 2 * Math.PI / numVertices;
+      for (let i = 0; i < numVertices; i++) {
+        const theta = angle + i * stride;
+        const c = Math.cos(theta), s = Math.sin(theta);
+        result.push({x: center.x + c, y: center.y + s});
+      }
+      return result;
+    }
+    const triangle = (c, a) => regularPolygon(3, c, a);
+    const pentagon = (c, a) => regularPolygon(5, c, a);
+
+    // Compute the support point for a set of vertices in a given direction.
+    function support(vertices, d) {
+      let best = vertices[0], bestDot = dot(vertices[0], d);
+      for (let i = 1, n = vertices.length; i < n; i++) {
+        const x = dot(vertices[i], d);
+        if (x > bestDot) {
+          bestDot = x;
+          best = vertices[i];
+        }
+      }
+      return best;
+    }
+
+    // Calculate the support point for the Minkowski difference of two shapes in
+    // a given direction.
+    const minkowskiSupport = (a, b) => d => {
+      const va = support(a, d);
+      const vb = support(b, neg(d));
+      // The actual support point is `position`, but we also return the support
+      // points from the individual shapes as these are needed for calculating
+      // the contact point later.
+      return {a: va, b: vb, position: sub(va, vb)};
+    };
+
+    // Detects whether two objects are intersecting based on a `support`
+    // function representing the Minkowski Difference of the two shapes.
+    //
+    // If the objects are intersecting, returns a triangle consisting of three
+    // vertices of the Minkowski Difference and containing the origin. If the
+    // objects are not intersecting, returns `null`.
+    function gjk(support) {
+      // We need a starting point for the initial simplex, as well as a search
+      // direction. We can find a starting point by searching for a support
+      // point in any arbitrary direction, and we can then search back towards
+      // the origin from that point.
+      const s = support(vec(1, 0));
+      let d = neg(s.position);
+      let simplex = [s];
+      while (true) {
+        const a = support(d);
+        // Our search direction `d` is always towards the origin. If we didn't
+        // go beyond the origin with the new support point, it means that the
+        // origin is outside of the Minkowski difference and we can return.
+        if (dot(a.position, d) < 0) return null;
+
+        // Otherwise, we need to update the simplex and search direction.
+        simplex.push(a);
+        switch (simplex.length) {
+          case 2: {
+            const [a, b] = simplex;
+            // The closest simplex for a line is always the line itself:
+            //   * It can't be `a` because `d` is away from `a`.
+            //   * It can't be `b` because we know that `b` is beyond the origin
+            //     and our initial search direction was directly towards the
+            //     origin.
+            const n = rot90(sub(b.position, a.position));
+            d = dot(n, a.position) < 0 ? n : neg(n);
+            break;
+          }
+          case 3: {
+            const [a, b, c] = simplex;
+            // If the triangle contains the origin, we're done. Otherwise, the
+            // closest simplex will be one of the triangle's new edges:
+            //   * It can't be either `a` or `b` by induction, with the base
+            //     case being the line case above and the inductive case being
+            //     the two edge cases below.
+            //   * It can't be `c` because we passed the origin on the way to
+            //     `c` from edge `(a, b)`, making either `(a, c)` or `(b, c)`
+            //     closer.
+            //   * It can't be the old edge `(a, b)` because we started
+            //     searching by moving away from that edge.
+            // So, we only have to check edges `(a, c)` and `(b, c)`.
+            const ab = sub(b.position, a.position);
+            // Calculate the normals for the two edges, facing out of the
+            // triangle.
+            let acNorm = rot90(sub(c.position, a.position));
+            if (dot(ab, acNorm) > 0) acNorm = neg(acNorm);
+            let bcNorm = rot90(sub(c.position, b.position));
+            if (dot(ab, bcNorm) < 0) bcNorm = neg(bcNorm);
+            if (dot(c.position, acNorm) < 0) {
+              // In front of `(a, c)`.
+              simplex = [a, c];
+              d = acNorm;
+            } else if (dot(c.position, bcNorm) < 0) {
+              // In front of `(b, c)`.
+              simplex = [b, c];
+              d = bcNorm;
+            } else {
+              // The triangle contains the origin, so there's an intersection.
+              return simplex;
+            }
+            break;
+          }
+        }
+      }
+    }
+
+    // Given a `support` function representing the Minkowski Difference of two
+    // shapes and an `initial` simplex consisting of vertices from the Minkowski
+    // Difference and containing the origin, the Expanding Polytope Algorithm
+    // finds the collision point and separation vector for the intersection.
+    function epa(support, initial) {
+      // The algorithm gradually expands a convex polytope (in 2D, this is just
+      // a polygon) until it reaches the surface of the Minkowski Difference
+      // which is closest to the origin. Initially, we start with the simplex
+      // produced by GJK.
+      //
+      // The representation we're using here is a list of faces. Each face
+      // caches its distance from the origin as well as the normal direction
+      // facing away from the origin.
+      const polytope = [];
+      {
+        const [a, b, c] = initial;
+        for (const [p, q] of [[a, b], [b, c], [c, a]]) {
+          const pq = sub(q.position, p.position);
+          if (dot(pq, pq) < 1e-5) continue;
+          const n = norm(rot90(sub(q.position, p.position)));
+          const d = dot(q.position, n);
+          if (d > 0) {
+            polytope.push({p, q, normal: n, distance: d});
+          } else {
+            polytope.push({p, q, normal: neg(n), distance: -d});
+          }
+        }
+      }
+      while (true) {
+        // Find the polytope face which is closest to the origin.
+        let minFace = 0;
+        for (let i = 1; i < polytope.length; i++) {
+          if (polytope[i].distance < polytope[minFace].distance) minFace = i;
+        }
+        const f = polytope[minFace];
+        const n = f.normal;
+        // Search outwards from that face in the direction of the normal. If we
+        // don't find anything beyond the face, we're already at the edge of the
+        // Minkowski Difference and we can return. Otherwise, we replace the
+        // face with new ones formed from the new support point and repeat.
+        const v = support(n);
+        const d = dot(v.position, n);
+        if (d - f.distance < 1e-5) {
+          // The new point is (close enough to being) on the surface of the
+          // face, so we're done. We can find the separation vector by
+          // projecting the origin onto the face, and we can find the contact
+          // points by interpolating between the world-space coordinates
+          // corresponding to each of the Minkowski Difference vertices.
+          const qp = sub(f.p.position, f.q.position);
+          const t = dot(f.p.position, qp) / dot(qp, qp);
+          const sep = add(mul(f.p.position, 1 - t), mul(f.q.position, t));
+          const a = add(mul(f.p.a, 1 - t), mul(f.q.a, t));
+          const b = add(mul(f.p.b, 1 - t), mul(f.q.b, t));
+          return {polytope, a, b, sep};
+        }
+        // Otherwise, we need to update the polytope. In 2D, we can simply
+        // replace one edge with two.
+        const newFaces = [];
+        for (const [p, q] of [[f.p, v], [v, f.q]]) {
+          const n = norm(rot90(sub(q.position, p.position)));
+          const d = dot(q.position, n);
+          if (d > 0) {
+            newFaces.push({p, q, normal: n, distance: d});
+          } else {
+            newFaces.push({p, q, normal: neg(n), distance: -d});
+          }
+        }
+        polytope.splice(minFace, 1, ...newFaces);
+      }
+    }
+
+    let t = 0;
+    const a = pentagon(vec(0, -3), 0);
+
+    const canvas = document.createElement('canvas');
+    canvas.style.width = '100%';
+    canvas.width = 1024;
+    canvas.height = 640;
+    document.currentScript.parentElement.insertBefore(
+        canvas, document.currentScript);
+    const context = canvas.getContext('2d');
+
+    function trace(vertices) {
+      const last = vertices[vertices.length - 1];
+      context.moveTo(last.x, last.y);
+      for (const v of vertices) {
+        context.lineTo(v.x, v.y);
+      }
+    }
+
+    // Make it so that we can use arrow keys to override the flow of time in the
+    // demo, so it is easier to look at a specific point in time.
+    let rate = 1;
+    addEventListener('keydown', event => {
+      switch (event.code) {
+        case 'ArrowLeft': rate = -1; break;
+        case 'ArrowRight': rate = 1; break;
+      }
+    });
+    addEventListener('keyup', event => {
+      switch (event.code) {
+        case 'ArrowLeft':
+        case 'ArrowRight':
+          rate = 0;
+          break;
+      }
+    });
+    // Also allow starting and stopping time by clicking.
+    canvas.addEventListener('mousedown', event => {
+      rate = rate ? 0 : 1;
+    });
+
+    function tick(dt) {
+      t += rate * dt;
+      const b = triangle(vec(2 * Math.sin(t), -3), Math.sqrt(2) * t);
+      const s = minkowskiSupport(a, b);
+      const collision = gjk(s);
+
+      context.clearRect(0, 0, canvas.width, canvas.height);
+      context.save();
+        // Zoom the canvas in on the demo.
+        context.translate(0.5 * canvas.width, 0.5 * canvas.height);
+        const scale = 0.1 * canvas.width;
+        context.lineWidth = 1 / scale;
+        context.scale(scale, scale);
+        context.translate(0, 1);
+
+        // Draw the objects.
+        context.strokeStyle = collision ? '#0f0' : '#f00';
+        context.beginPath();
+          trace(a);
+          trace(b);
+        context.stroke();
+
+        if (collision) {
+          // Draw the collision simplex in cyan.
+          context.strokeStyle = '#0ff';
+          context.beginPath();
+            context.moveTo(0, 0);
+            context.arc(0, 0, 0.01, 0, 2 * Math.PI);
+            trace(collision.map(v => v.position));
+          context.stroke();
+
+          const contact = epa(s, collision);
+          // Draw the output of EPA in yellow.
+          context.strokeStyle = '#ff0';
+          context.beginPath();
+            // Draw the final polytope which we explored, which is some subset
+            // of the Minkowski Difference which definitely includes the edge
+            // of the Minkowski Difference that is closest to the origin.
+            for (const {p, q, normal} of contact.polytope) {
+              context.moveTo(p.position.x, p.position.y);
+              context.lineTo(q.position.x, q.position.y);
+            }
+
+            // Draw the separation vector on the polytope.
+            const {a, b, sep} = contact;
+            context.moveTo(0, 0);
+            context.lineTo(sep.x, sep.y);
+
+            // Draw the contact points on the two shapes, plus a copy of the
+            // separation vector between them.
+            context.moveTo(a.x + 0.05, a.y);
+            context.arc(a.x, a.y, 0.05, 0, 2 * Math.PI);
+            context.moveTo(a.x, a.y);
+            context.lineTo(b.x, b.y);
+            context.moveTo(b.x + 0.05, b.y);
+            context.arc(b.x, b.y, 0.05, 0, 2 * Math.PI);
+          context.stroke();
+
+          // Draw dotted lines between the two separation vectors.
+          context.setLineDash([0.02, 0.1]);
+          context.beginPath();
+            context.moveTo(a.x, a.y);
+            context.lineTo(sep.x, sep.y);
+            context.moveTo(0, 0);
+            context.lineTo(b.x, b.y);
+          context.stroke();
+        }
+
+      context.restore();
+    }
+
+    setInterval(() => tick(0.01), 10);
+  })();
+</script>
+
+
+<p>You can stop or start the simulation by clicking, and can control the flow of
+time with left and right arrow keys.</p>
+
+<p>The simulation has two shapes being tested for intersections. Below them is
+a visualisation of the outputs from GJK and EPA:</p>
+
+<ul>
+<li>The output from GJK is shown in cyan.</li>
+<li>The output from EPA is shown in yellow.</li>
+</ul>
+
+
+<p>I don&rsquo;t minify the code for my site, so you can simply view the source for this
+page to see the commented code.</p>
+<div class="footnotes">
+<hr/>
+<ol>
+<li id="fn:1">
+Convexity is a prerequisite for a lot of efficient collision
+algorithms and we can handle many concave shapes by decomposing them into
+convex components.<a href="#fnref:1" rev="footnote">&#8617;</a></li>
+</ol>
+</div>
