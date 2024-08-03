@@ -220,7 +220,6 @@ any further.</p>
         }
         // Otherwise, we need to update the polytope. In 2D, we can simply
         // replace one edge with two.
-        const newFaces = [];
         polytope[minFace] = makeFace(f.p, v);
         polytope.push(makeFace(v, f.q));
       }
