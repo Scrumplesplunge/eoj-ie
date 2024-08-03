@@ -108,68 +108,62 @@ any further.</p>
     // vertices of the Minkowski Difference and containing the origin. If the
     // objects are not intersecting, returns `null`.
     function gjk(support) {
-      // We need a starting point for the initial simplex, as well as a search
-      // direction. We can find a starting point by searching for a support
-      // point in any arbitrary direction, and we can then search back towards
-      // the origin from that point.
-      const s = support(vec(1, 0));
-      let d = neg(s.position);
-      let simplex = [s];
+      let d;
+      let simplex;
+
+      {
+        // We need a starting point for the initial simplex, as well as a search
+        // direction. We can find a starting point by searching for a support
+        // point in any arbitrary direction, and we can then search back towards
+        // the origin from that point to find a second one.
+        const a = support(vec(1, 0));
+        const b = support(neg(a.position));
+        if (dot(a.position, b.position) > 0) return null;
+        const n = rot90(sub(b.position, a.position));
+        const forward = dot(a.position, n) < 0;
+        d = forward ? n : neg(n);
+        // We always orient an edge simplex so that rot90(sub(b, a)) points
+        // towards the origin. This saves us from having to check this for each
+        // triangle simplex.
+        simplex = forward ? [a, b] : [b, a];
+      }
+
       while (true) {
-        const a = support(d);
+        const [a, b] = simplex;
+        const c = support(d);
         // Our search direction `d` is always towards the origin. If we didn't
         // go beyond the origin with the new support point, it means that the
         // origin is outside of the Minkowski difference and we can return.
-        if (dot(a.position, d) < 0) return null;
+        if (dot(c.position, d) < 0) return null;
 
-        // Otherwise, we need to update the simplex and search direction.
-        simplex.push(a);
-        switch (simplex.length) {
-          case 2: {
-            const [a, b] = simplex;
-            // The closest simplex for a line is always the line itself:
-            //   * It can't be `a` because `d` is away from `a`.
-            //   * It can't be `b` because we know that `b` is beyond the origin
-            //     and our initial search direction was directly towards the
-            //     origin.
-            const n = rot90(sub(b.position, a.position));
-            const forward = dot(a.position, n) < 0;
-            d = forward ? n : neg(n);
-            simplex = forward ? [a, b] : [b, a];
-            break;
-          }
-          case 3: {
-            const [a, b, c] = simplex;
-            // If the triangle contains the origin, we're done. Otherwise, the
-            // closest simplex will be one of the triangle's new edges:
-            //   * It can't be either `a` or `b` by induction, with the base
-            //     case being the line case above and the inductive case being
-            //     the two edge cases below.
-            //   * It can't be `c` because we passed the origin on the way to
-            //     `c` from edge `(a, b)`, making either `(a, c)` or `(b, c)`
-            //     closer.
-            //   * It can't be the old edge `(a, b)` because we started
-            //     searching by moving away from that edge.
-            // So, we only have to check edges `(a, c)` and `(b, c)`.
-            const ab = sub(b.position, a.position);
-            // Calculate the normals for the two edges, facing out of the
-            // triangle.
-            let acNorm = rot90(sub(c.position, a.position));
-            let bcNorm = rot90(sub(b.position, c.position));
-            if (dot(c.position, acNorm) < 0) {
-              // In front of `(a, c)`.
-              simplex = [a, c];
-              d = acNorm;
-            } else if (dot(c.position, bcNorm) < 0) {
-              // In front of `(b, c)`.
-              simplex = [c, b];
-              d = bcNorm;
-            } else {
-              // The triangle contains the origin, so there's an intersection.
-              return simplex;
-            }
-            break;
-          }
+        // Otherwise, we need to update the simplex and search direction. If the
+        // triangle contains the origin, we're done. Otherwise, the closest
+        // simplex will be one of the triangle's new edges:
+        //   * It can't be either `a` or `b` by induction, with the base
+        //     case being the line case above and the inductive case being
+        //     the two edge cases below.
+        //   * It can't be `c` because we passed the origin on the way to
+        //     `c` from edge `(a, b)`, making either `(a, c)` or `(b, c)`
+        //     closer.
+        //   * It can't be the old edge `(a, b)` because we started
+        //     searching by moving away from that edge.
+        // So, we only have to check edges `(a, c)` and `(b, c)`.
+        const ab = sub(b.position, a.position);
+        // Calculate the normals for the two edges, facing out of the
+        // triangle.
+        let acNorm = rot90(sub(c.position, a.position));
+        let bcNorm = rot90(sub(b.position, c.position));
+        if (dot(c.position, acNorm) < 0) {
+          // In front of `(a, c)`.
+          simplex = [a, c];
+          d = acNorm;
+        } else if (dot(c.position, bcNorm) < 0) {
+          // In front of `(b, c)`.
+          simplex = [c, b];
+          d = bcNorm;
+        } else {
+          // The triangle contains the origin, so there's an intersection.
+          return [a, b, c];
         }
       }
     }
