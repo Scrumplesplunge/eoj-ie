@@ -181,13 +181,15 @@ any further.</p>
       // The representation we're using here is a list of faces. Each face
       // caches its distance from the origin as well as the normal direction
       // facing away from the origin.
+      function makeFace(p, q) {
+        const normal = norm(rot90(sub(p.position, q.position)));
+        return {p, q, normal, distance: dot(q.position, normal)};
+      }
       const polytope = [];
       {
         const [a, b, c] = initial;
         for (const [p, q] of [[a, b], [b, c], [c, a]]) {
-          const normal = norm(rot90(sub(p.position, q.position)));
-          const distance = dot(q.position, normal);
-          polytope.push({p, q, normal, distance});
+          polytope.push(makeFace(p, q));
         }
       }
       while (true) {
@@ -219,12 +221,8 @@ any further.</p>
         // Otherwise, we need to update the polytope. In 2D, we can simply
         // replace one edge with two.
         const newFaces = [];
-        for (const [p, q] of [[f.p, v], [v, f.q]]) {
-          const normal = norm(rot90(sub(p.position, q.position)));
-          const distance = dot(q.position, normal);
-          newFaces.push({p, q, normal, distance});
-        }
-        polytope.splice(minFace, 1, ...newFaces);
+        polytope[minFace] = makeFace(f.p, v);
+        polytope.push(makeFace(v, f.q));
       }
     }
 
