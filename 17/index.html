@@ -187,13 +187,9 @@ any further.</p>
         for (const [p, q] of [[a, b], [b, c], [c, a]]) {
           const pq = sub(q.position, p.position);
           if (dot(pq, pq) < 1e-5) continue;
-          const n = norm(rot90(sub(q.position, p.position)));
-          const d = dot(q.position, n);
-          if (d > 0) {
-            polytope.push({p, q, normal: n, distance: d});
-          } else {
-            polytope.push({p, q, normal: neg(n), distance: -d});
-          }
+          const normal = norm(rot90(sub(p.position, q.position)));
+          const distance = dot(q.position, normal);
+          polytope.push({p, q, normal, distance});
         }
       }
       while (true) {
@@ -203,13 +199,12 @@ any further.</p>
           if (polytope[i].distance < polytope[minFace].distance) minFace = i;
         }
         const f = polytope[minFace];
-        const n = f.normal;
         // Search outwards from that face in the direction of the normal. If we
         // don't find anything beyond the face, we're already at the edge of the
         // Minkowski Difference and we can return. Otherwise, we replace the
         // face with new ones formed from the new support point and repeat.
-        const v = support(n);
-        const d = dot(v.position, n);
+        const v = support(f.normal);
+        const d = dot(v.position, f.normal);
         if (d - f.distance < 1e-5) {
           // The new point is (close enough to being) on the surface of the
           // face, so we're done. We can find the separation vector by
@@ -227,13 +222,9 @@ any further.</p>
         // replace one edge with two.
         const newFaces = [];
         for (const [p, q] of [[f.p, v], [v, f.q]]) {
-          const n = norm(rot90(sub(q.position, p.position)));
-          const d = dot(q.position, n);
-          if (d > 0) {
-            newFaces.push({p, q, normal: n, distance: d});
-          } else {
-            newFaces.push({p, q, normal: neg(n), distance: -d});
-          }
+          const normal = norm(rot90(sub(p.position, q.position)));
+          const distance = dot(q.position, normal);
+          newFaces.push({p, q, normal, distance});
         }
         polytope.splice(minFace, 1, ...newFaces);
       }
