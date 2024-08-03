@@ -222,7 +222,7 @@ Without further ado, here's the demo:
 
     const a = pentagon(vec(0, -3), 0);
     let t = 5.6;  // Chosen to be an interesting intersection.
-    let rate = 1;
+    let rate = 0;
     function tick(dt) {
       t += rate * dt;
       window.t = t;
