@@ -164,8 +164,6 @@ Without further ado, here's the demo:
       {
         const [a, b, c] = initial;
         for (const [p, q] of [[a, b], [b, c], [c, a]]) {
-          const pq = sub(q.position, p.position);
-          if (dot(pq, pq) < 1e-5) continue;
           const normal = norm(rot90(sub(p.position, q.position)));
           const distance = dot(q.position, normal);
           polytope.push({p, q, normal, distance});
