@@ -112,7 +112,9 @@ Without further ado, here's the demo:
             //     and our initial search direction was directly towards the
             //     origin.
             const n = rot90(sub(b.position, a.position));
-            d = dot(n, a.position) < 0 ? n : neg(n);
+            const forward = dot(a.position, n) < 0;
+            d = forward ? n : neg(n);
+            simplex = forward ? [a, b] : [b, a];
             break;
           }
           case 3: {
@@ -132,16 +134,14 @@ Without further ado, here's the demo:
             // Calculate the normals for the two edges, facing out of the
             // triangle.
             let acNorm = rot90(sub(c.position, a.position));
-            if (dot(ab, acNorm) > 0) acNorm = neg(acNorm);
-            let bcNorm = rot90(sub(c.position, b.position));
-            if (dot(ab, bcNorm) < 0) bcNorm = neg(bcNorm);
+            let bcNorm = rot90(sub(b.position, c.position));
             if (dot(c.position, acNorm) < 0) {
               // In front of `(a, c)`.
               simplex = [a, c];
               d = acNorm;
             } else if (dot(c.position, bcNorm) < 0) {
               // In front of `(b, c)`.
-              simplex = [b, c];
+              simplex = [c, b];
               d = bcNorm;
             } else {
               // The triangle contains the origin, so there's an intersection.
