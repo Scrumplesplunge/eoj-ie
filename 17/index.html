@@ -225,9 +225,6 @@ any further.</p>
       }
     }
 
-    let t = 0;
-    const a = pentagon(vec(0, -3), 0);
-
     const canvas = document.createElement('canvas');
     canvas.style.width = '100%';
     canvas.width = 1024;
@@ -244,30 +241,12 @@ any further.</p>
       }
     }
 
-    // Make it so that we can use arrow keys to override the flow of time in the
-    // demo, so it is easier to look at a specific point in time.
+    const a = pentagon(vec(0, -3), 0);
+    let t = 5.6;  // Chosen to be an interesting intersection.
     let rate = 1;
-    addEventListener('keydown', event => {
-      switch (event.code) {
-        case 'ArrowLeft': rate = -1; break;
-        case 'ArrowRight': rate = 1; break;
-      }
-    });
-    addEventListener('keyup', event => {
-      switch (event.code) {
-        case 'ArrowLeft':
-        case 'ArrowRight':
-          rate = 0;
-          break;
-      }
-    });
-    // Also allow starting and stopping time by clicking.
-    canvas.addEventListener('mousedown', event => {
-      rate = rate ? 0 : 1;
-    });
-
     function tick(dt) {
       t += rate * dt;
+      window.t = t;
       const b = triangle(vec(2 * Math.sin(t), -3), Math.sqrt(2) * t);
       const s = minkowskiSupport(a, b);
       const collision = gjk(s);
@@ -333,11 +312,45 @@ any further.</p>
             context.lineTo(b.x, b.y);
           context.stroke();
         }
-
       context.restore();
     }
+    const DELTA_TIME = 0.01;
+    let timer = 0;
+    function updateTimer() {
+      if (rate && timer == 0) {
+        timer = setInterval(() => tick(DELTA_TIME), 1000 * DELTA_TIME);
+      } else if (rate == 0 && timer) {
+        clearInterval(timer);
+        timer = 0;
+      }
+    }
+    tick(0);
 
-    setInterval(() => tick(0.01), 10);
+    // Make it so that we can use arrow keys to override the flow of time in the
+    // demo, so it is easier to look at a specific point in time.
+    addEventListener('keydown', event => {
+      switch (event.code) {
+        case 'ArrowLeft': rate = -1; break;
+        case 'ArrowRight': rate = 1; break;
+        default: return;
+      }
+      updateTimer();
+    });
+    addEventListener('keyup', event => {
+      switch (event.code) {
+        case 'ArrowLeft':
+        case 'ArrowRight':
+          rate = 0;
+          break;
+        default: return;
+      }
+      updateTimer();
+    });
+    // Also allow starting and stopping time by clicking.
+    canvas.addEventListener('mousedown', event => {
+      rate = rate ? 0 : 1;
+      updateTimer();
+    });
   })();
 </script>
 
