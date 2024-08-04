@@ -91,20 +91,20 @@ class Collision {
   }
   // Correct for intersections by partially removing penetration.
   correct() {
-    const amount = 0.8;
-    const slop = 0.01;
+    const slop = 0.001;
     const penetration = Math.max(this.depth - slop, 0);
     const factor = penetration / (this.a.inverseMass + this.b.inverseMass);
-    const correction = this.normal.mul(factor * amount);
+    const correction = this.normal.mul(factor);
     this.a.position = this.a.position.sub(correction.mul(this.a.inverseMass));
     this.b.position = this.b.position.add(correction.mul(this.b.inverseMass));
   }
 }
 
 class Polygon {
-  constructor(points) {
+  constructor(points, radius) {
     // Points must be arranged clockwise on a canvas grid (y down).
     this.points = points;
+    this.radius = radius;
   }
   at(position, angle) {
     const m = Matrix.rotate(angle);
@@ -131,7 +131,8 @@ class Polygon {
 class AABB extends Polygon {
   constructor(min = new Vector(-Infinity, -Infinity),
               max = new Vector(Infinity, Infinity)) {
-    super([min, new Vector(max.x, min.y), max, new Vector(min.x, max.y)]);
+    super([min, new Vector(max.x, min.y), max, new Vector(min.x, max.y)],
+          Math.max(min.length(), max.length()));
   }
 }
 
@@ -143,7 +144,7 @@ class Circle extends Polygon {
       const c = Math.cos(theta), s = Math.sin(theta);
       points.push(new Vector(position.x + c * radius, position.y + s * radius));
     }
-    super(points);
+    super(points, radius);
   }
 }
 
@@ -181,6 +182,11 @@ function leastPenetration(a, b) {
 }
 
 function intersect(oa, ob) {
+  // Exit early if bounding circles do not overlap.
+  const offset = ob.position.sub(oa.position);
+  const maxDistance = oa.mesh.radius + ob.mesh.radius;
+  if (offset.dot(offset) > maxDistance * maxDistance) return null;
+
   const a = oa.getMesh(), b = ob.getMesh();
   const penetrationA = leastPenetration(a, b);
   if (!penetrationA) return null;

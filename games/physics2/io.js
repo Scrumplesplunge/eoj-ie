@@ -39,7 +39,7 @@ class Matrix {
 
 const camera = {
   position: new Vector,
-  scale: 100,
+  scale: 150,
 };
 
 function tick(dt) {}

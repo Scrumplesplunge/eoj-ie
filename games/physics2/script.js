@@ -1,12 +1,10 @@
-
-
 class Ball extends PhysicsObject {
   constructor(radius) {
     super(new Circle(new Vector, radius));
     this.radius = radius;
     this.restitution = 0.99;
-    this.staticFriction = 0.5;
-    this.dynamicFriction = 0.3;
+    this.staticFriction = 1.25;
+    this.dynamicFriction = 0.75;
     this.inverseInertia = 30;
   }
   draw(context) {
@@ -64,20 +62,21 @@ class Wall extends PhysicsObject {
 Wall.image = new Image;
 Wall.image.src = "bricks.png";
 
-function randomBall() {
-  return new Ball(0.2 + 0.1 * Math.random());
+function randomPosition() {
+  return new Vector(3.6 * Math.random() - 1.8, 2.5 * Math.random() - 3);
 }
 
-function randomCrate() {
-  const x = 0.4 + 0.2 * Math.random(), y = 0.4 + 0.2 * Math.random();
-  return new Crate(new Vector(x, y));
+function randomBall(position) {
+  const ball = new Ball(0.2 + 0.1 * Math.random());
+  ball.position = position;
+  return ball;
 }
 
-function item(position) {
-  const object = Math.random() < 0.5 ? randomBall() : randomCrate();
-  object.position = position;
-  object.angle = 2 * Math.PI * Math.random();
-  return object;
+function randomCrate(position) {
+  const w = 0.45 + 0.1 * Math.random(), h = 0.45 + 0.1 * Math.random();
+  const crate = new Crate(new Vector(w, h));
+  crate.position = position;
+  return crate;
 }
 
 const world = [
@@ -87,18 +86,41 @@ const world = [
   new Wall(new Vector(0, 3), new Vector(8.5, 0.5)),
   new Wall(new Vector(-1.5, 1), new Vector(3, 0.5)),
 ];
+
 world[4].angle = 0.5;
-for (let i = 0; i < 20; i++) {
-  const x = 3.6 * Math.random() - 1.8;
-  const y = 2.5 * Math.random() - 3;
-  world.push(item(new Vector(x, y)));
+
+// Build some stacks.
+const FLOOR_HEIGHT = 2.75;
+for (let stack = 0; stack < 2; stack++) {
+  const x = 1 + stack * 2;
+  let y = FLOOR_HEIGHT;
+  while (true) {
+    const crate = randomCrate(new Vector(x, 0));
+    crate.position.y = y - 0.5 * crate.size.y;
+    y -= crate.size.y;
+    if (y < -2) break;
+    world.push(crate);
+  }
 }
 
+world.push(randomBall(new Vector(-2, -1)));
+
+addEventListener('contextmenu', event => {
+  event.preventDefault();
+});
+
+addEventListener('mousedown', event => {
+  if (event.button == 2 || event.button == 3) {
+    const item = event.button == 2 ? randomCrate() : randomBall();
+    item.position = mouse;
+    world.push(item);
+    mouseDown();
+  }
+});
+
 let gravity = new Vector(0, 10);
-screen.orientation.lock("natural");
+
 addEventListener("devicemotion", event => {
-  const acceleration = event.accelerationIncludingGravity;
-  if (acceleration.x === null && acceleration.y === null) return;
   const strength = 5;
   gravity.x = -strength * event.accelerationIncludingGravity.x;
   gravity.y = strength * event.accelerationIncludingGravity.y;
@@ -135,6 +157,24 @@ function innerTick(dt) {
     }
     x.update(dt);
   }
+  // Detect all collisions.
+  const collisions = [];
+  for (let i = 0, n = world.length; i < n; i++) {
+    for (let j = i + 1; j < n; j++) {
+      if (!world[i].movable() && !world[j].movable()) continue;
+      const collision = intersect(world[i], world[j]);
+      if (collision) collisions.push(collision);
+    }
+  }
+  // Correct collisions in reverse order of their overlap.
+  collisions.sort((a, b) => b.depth - a.depth);
+  for (const collision of collisions) {
+    collision.correct();
+    collision.resolve();
+  }
+}
+
+function tick(dt) {
   // Apply forces to the held item.
   if (heldItem) {
     const target = mouse;
@@ -145,21 +185,7 @@ function innerTick(dt) {
     const impulse = acceleration.mul(0.5 / heldItem.inverseMass);
     heldItem.applyImpulse(impulse, current);
   }
-  // Resolve collisions.
-  for (let i = 0, n = world.length; i < n; i++) {
-    const movableA = world[i].movable();
-    for (let j = i + 1; j < n; j++) {
-      if (!movableA && !world[j].movable()) continue;
-      const collision = intersect(world[i], world[j]);
-      if (!collision) continue;
-      collision.resolve();
-      collision.correct();
-    }
-  }
-}
-
-function tick(dt) {
-  const rounds = 5;
+  const rounds = 20;
   for (let i = 0; i < rounds; i++) innerTick(dt / rounds);
 }
 
