@@ -5,7 +5,10 @@ class Ball extends PhysicsObject {
     this.restitution = 0.99;
     this.staticFriction = 1.25;
     this.dynamicFriction = 0.75;
-    this.inverseInertia = 30;
+    const mass = 0.5;
+    this.inverseMass = 1 / mass;
+    const inertia = 2/3 * mass * radius**2;
+    this.inverseInertia = 1 / inertia;
   }
   draw(context) {
     context.save();
@@ -24,6 +27,12 @@ class Crate extends PhysicsObject {
     super(new AABB(size.mul(-0.5), size.mul(0.5)));
     this.size = size;
     this.restitution = 0.2;
+    const mass = (size.x * size.y) ** (3/2) * 100;  // 100kg/m³
+    this.inverseMass = 1 / mass;
+    const inertia = 1/12 * mass * size.dot(size);
+    // Should be 1/inertia, but the engine is more stable with amplified inertia
+    this.inverseInertia = 0.2 / inertia;
+    console.log(`mass: ${mass}, inertia: ${inertia}`);
   }
   draw(context) {
     context.save();
@@ -54,7 +63,7 @@ class Wall extends PhysicsObject {
       const extent = this.size.mul(0.5);
       context.beginPath();
       context.rect(-extent.x, -extent.y, this.size.x, this.size.y);
-      context.scale(0.01, 0.01);
+      context.scale(1/256, 1/256);
       context.fill();
     context.restore();
   }
@@ -67,7 +76,7 @@ function randomPosition() {
 }
 
 function randomBall(position) {
-  const ball = new Ball(0.2 + 0.1 * Math.random());
+  const ball = new Ball(0.1 + 0.05 * Math.random());
   ball.position = position;
   return ball;
 }
@@ -192,15 +201,6 @@ function tick(dt) {
 const background = new Image;
 background.src = "background.png";
 function draw(context) {
-  context.fillStyle = context.createPattern(background, "repeat");
-  context.beginPath();
-  context.save();
-    context.setTransform(1, 0, 0, 1, 0, 0);
-    context.rect(0, 0, context.canvas.width, context.canvas.height);
-  context.restore();
-  context.save();
-    context.scale(0.01, 0.01);
-    context.fill();
-  context.restore();
+  context.clearRect(0, 0, context.canvas.width, context.canvas.height);
   for (const x of world) x.draw(context);
 }

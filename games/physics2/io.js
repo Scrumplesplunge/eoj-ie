@@ -49,7 +49,7 @@ function mouseDown() {}
 function mouseUp() {}
 
 addEventListener("mousemove", event => {
-  const raw = new Vector(event.x, event.y);
+  const raw = new Vector(event.x, event.y).mul(devicePixelRatio);
   const size = new Vector(canvas.width, canvas.height);
   mouseMove(raw.sub(size.mul(0.5)).mul(1 / camera.scale).add(camera.position));
 });
@@ -57,9 +57,21 @@ addEventListener("mousemove", event => {
 addEventListener("mousedown", event => mouseDown());
 addEventListener("mouseup", event => mouseUp());
 
+function handleTouch(event) {
+  const {clientX, clientY} = event.touches[0];
+  const raw = new Vector(clientX, clientY).mul(devicePixelRatio);
+  const size = new Vector(canvas.width, canvas.height);
+  mouseMove(raw.sub(size.mul(0.5)).mul(1 / camera.scale).add(camera.position));
+}
+
+addEventListener("touchmove", handleTouch);
+addEventListener("touchstart", event => { handleTouch(event); mouseDown(); });
+addEventListener("touchend", event => { mouseUp(); });
+
 function resize() {
-  canvas.width = innerWidth;
-  canvas.height = innerHeight;
+  canvas.width = devicePixelRatio * innerWidth;
+  canvas.height = devicePixelRatio * innerHeight;
+  camera.scale = Math.min(canvas.width / 10, canvas.height / 8);
   draw();
 }
 resize();
